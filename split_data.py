@@ -23,7 +23,7 @@ def split_and_save(file_path, date_col="Date", target_train_ratio=0.8):
     print(f"Saved Test Size ({(1-target_train_ratio)*100}%): {len(df_test)} records to {test_path}\n")
 
 files_to_split = [
-    "silver_RRL_interpolate.csv"
+    "silver_RRL_interpolate.csv", "gold_RRL_interpolate.csv"
 ]
 
 for file in files_to_split:

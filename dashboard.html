@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Forecasting Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg: #0b0c10;
@@ -85,7 +86,7 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             width: 90%;
             margin: 3rem auto;
             flex: 1;
@@ -118,7 +119,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
         }
 
         .card {
@@ -166,6 +167,8 @@
             justify-content: space-between;
             align-items: flex-end;
             margin-top: 1rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1rem;
         }
         
         .stat-group {
@@ -178,21 +181,29 @@
             font-weight: 800;
         }
         
-        .stat-diff {
-            font-size: 1.2rem;
-            font-weight: 800;
-            margin-top: 0.5rem;
-            padding: 0.25rem 0.75rem;
-            border-radius: 8px;
-            display: inline-block;
+        .metric-block {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 1rem;
+            border-radius: 10px;
         }
-
-        .diff-positive { color: var(--success); background: rgba(59, 226, 130, 0.1); }
-        .diff-negative { color: var(--danger); background: rgba(255, 82, 82, 0.1); }
+        
+        .metric-item {
+            text-align: center;
+        }
+        
+        .metric-val {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
 
         .action-area {
             text-align: center;
             margin-top: 3rem;
+            margin-bottom: 3rem;
         }
 
         .btn-next {
@@ -215,10 +226,6 @@
             box-shadow: 0 15px 40px rgba(78, 204, 163, 0.6);
         }
         
-        .btn-next:active {
-            transform: translateY(1px);
-        }
-        
         .btn-next:disabled {
             background: var(--surface);
             color: var(--text-muted);
@@ -226,6 +233,60 @@
             cursor: not-allowed;
             transform: none;
         }
+        
+        .chart-container {
+            background: var(--surface);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            margin-bottom: 2rem;
+            height: 400px;
+            position: relative;
+        }
+
+        .history-table-container {
+            background: var(--surface);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            margin-bottom: 3rem;
+        }
+        
+        .history-table-container h3, .chart-container h3 {
+            color: var(--text-muted);
+            margin-top: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            margin-top: 1rem;
+        }
+
+        th {
+            color: var(--text-muted);
+            padding: 1rem;
+            border-bottom: 2px solid var(--card-border);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            font-size: 1rem;
+        }
+        
+        .cell-predicted { color: var(--primary); font-weight: 600; }
+        .cell-actual { color: #fff; font-weight: 600; }
 
         .loading-overlay {
             position: fixed;
@@ -256,17 +317,7 @@
             animation: spin 1s linear infinite;
         }
 
-        .loading-text {
-            margin-top: 1.5rem;
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--primary);
-            letter-spacing: 1px;
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
     </style>
 </head>
@@ -291,23 +342,27 @@
             
             <!-- Yesterday Card -->
             <div class="card yesterday">
-                <h3>Previous Day Assessment</h3>
+                <h3>Previous Assessment</h3>
                 
                 <div class="yesterday-stats">
                     <div class="stat-group">
-                        <span class="price-label">Actual Closing Price</span>
+                        <span class="price-label">Actual Close</span>
                         <span class="stat-value" id="yest-actual">--</span>
+                    </div>
+                    <div class="stat-group" style="align-items: flex-end;">
+                        <span class="price-label">Model Prediction</span>
+                        <span class="stat-value" id="yest-pred" style="color: var(--text-muted);">--</span>
                     </div>
                 </div>
                 
-                <div class="yesterday-stats" style="margin-top: 1.5rem;">
-                    <div class="stat-group">
-                        <span class="price-label">Model Prediction</span>
-                        <span class="stat-value" id="yest-pred" style="color: var(--text-muted); font-size: 1.5rem">--</span>
+                <div class="metric-block">
+                    <div class="metric-item">
+                        <div class="price-label">Rolling RMSE</div>
+                        <div class="metric-val" id="metric-rmse">--</div>
                     </div>
-                    <div class="stat-group" style="align-items: flex-end;">
-                        <span class="price-label">Error delta</span>
-                        <span class="stat-diff" id="yest-diff">--</span>
+                    <div class="metric-item">
+                        <div class="price-label">Rolling R²</div>
+                        <div class="metric-val" id="metric-r2">--</div>
                     </div>
                 </div>
             </div>
@@ -321,7 +376,7 @@
                 </div>
                 
                 <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
-                    <span class="price-label">Model Retrained Using Data Up To:</span>
+                    <span class="price-label">Model Predicts Based on Sequence Ending:</span>
                     <div style="font-weight: 600; margin-top: 0.5rem;" id="last-train-date">--</div>
                 </div>
             </div>
@@ -333,7 +388,30 @@
                 Proceed to Next Day
             </button>
             <div style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-                This will append the true data to the Training CSV and micro-finetune the PyTorch model dynamically.
+                This advances the calendar mathematically using structurally locked weights to ensure pure R² validity.
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3>Visual Log Tracking</h3>
+            <canvas id="historyChart"></canvas>
+        </div>
+        
+        <div class="history-table-container">
+            <h3>Historical Prediction Log</h3>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Actual Price</th>
+                            <th>Predicted Price</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Awaiting Simulation Data...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -341,12 +419,84 @@
 
     <div class="loading-overlay" id="loader">
         <div class="spinner"></div>
-        <div class="loading-text" id="loader-text">Micro-Finetuning Neural Network...</div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:8000/api';
         let currentAsset = 'gold';
+        let mainChart = null;
+
+        Chart.defaults.color = '#8892b0';
+        Chart.defaults.font.family = 'Inter';
+
+        function initChart() {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            mainChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Actual Price',
+                            data: [],
+                            borderColor: '#ffffff',
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Predicted Price',
+                            data: [],
+                            borderColor: currentAsset === 'gold' ? '#ffd700' : '#4ecca3',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { backgroundColor: 'rgba(20, 22, 31, 0.9)', titleFont: {size: 14}, bodyFont: {size: 14}, padding: 12 }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' } }
+                    }
+                }
+            });
+        }
+
+        function updateChart(historyLog) {
+            if (!mainChart) initChart();
+            
+            mainChart.data.datasets[1].borderColor = currentAsset === 'gold' ? '#ffd700' : '#4ecca3';
+            
+            if (!historyLog || historyLog.length === 0) {
+                mainChart.data.labels = [];
+                mainChart.data.datasets[0].data = [];
+                mainChart.data.datasets[1].data = [];
+            } else {
+                // The log from the API places newest at index 0. We reverse it for chronologically correct plotting.
+                const chronoLog = [...historyLog].reverse();
+                
+                mainChart.data.labels = chronoLog.map(r => r.date);
+                mainChart.data.datasets[0].data = chronoLog.map(r => r.actual);
+                mainChart.data.datasets[1].data = chronoLog.map(r => r.predicted);
+            }
+            mainChart.update();
+        }
 
         async function fetchStatus() {
             try {
@@ -359,7 +509,7 @@
                     return;
                 }
 
-                document.getElementById('today-date').innerText = data.current_date; // Native Calendar progression
+                document.getElementById('today-date').innerText = data.current_date; 
                 
                 if (data.is_market_day) {
                     const pred = data.predicted_price;
@@ -373,24 +523,36 @@
                 if(data.yesterday_actual && data.yesterday_pred) {
                     document.getElementById('yest-actual').innerText = `$${data.yesterday_actual.toFixed(2)}`;
                     document.getElementById('yest-pred').innerText = `$${data.yesterday_pred.toFixed(2)}`;
-                    
-                    const diff = data.yesterday_actual - data.yesterday_pred;
-                    const diffEl = document.getElementById('yest-diff');
-                    diffEl.innerText = `${diff > 0 ? '+' : ''}$${diff.toFixed(2)}`;
-                    diffEl.className = 'stat-diff ' + (Math.abs(diff) < 5 ? 'diff-positive' : 'diff-negative');
                 } else if(data.yesterday_actual) {
-                    // Have actual, but missed prediction
                     document.getElementById('yest-actual').innerText = `$${data.yesterday_actual.toFixed(2)}`;
                     document.getElementById('yest-pred').innerText = '--';
-                    document.getElementById('yest-diff').innerText = '--';
                 } else {
                     document.getElementById('yest-actual').innerText = 'Started...';
                     document.getElementById('yest-pred').innerText = '--';
-                    document.getElementById('yest-diff').innerText = '--';
-                    document.getElementById('yest-diff').className = 'stat-diff';
                 }
                 
+                document.getElementById('metric-rmse').innerText = data.rolling_rmse !== null ? `$${data.rolling_rmse}` : '--';
+                document.getElementById('metric-r2').innerText = data.rolling_r2 !== null ? data.rolling_r2 : '--';
+                
                 document.getElementById('last-train-date').innerText = data.last_train_price ? `${data.yesterday_date || '-'} @ $${data.last_train_price.toFixed(2)}` : '--';
+                
+                const tbody = document.getElementById('history-body');
+                tbody.innerHTML = '';
+                if(data.history_log && data.history_log.length > 0) {
+                    data.history_log.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${row.date}</td>
+                            <td class="cell-actual">$${row.actual.toFixed(2)}</td>
+                            <td class="cell-predicted">$${row.predicted.toFixed(2)}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Awaiting Simulation Data...</td></tr>';
+                }
+
+                updateChart(data.history_log);
                 
             } catch(e) {
                 console.error(e);

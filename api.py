@@ -4,13 +4,12 @@ import pickle
 import datetime
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import pandas as pd
 import numpy as np
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from sklearn.metrics import mean_squared_error, r2_score
 
 app = FastAPI(title="Forecasting Simulation API")
 app.add_middleware(
@@ -149,6 +148,14 @@ def predict_next_day(asset):
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
         df = df.dropna(subset=["Date"]).sort_values("Date").reset_index(drop=True)
+        
+    test_df = pd.read_csv(config["test_csv"])
+    if st["test_idx"] > 0:
+        simulated_test = test_df.iloc[:st["test_idx"]].copy()
+        if "Date" in simulated_test.columns:
+            simulated_test["Date"] = pd.to_datetime(simulated_test["Date"], errors='coerce')
+        df = pd.concat([df, simulated_test], ignore_index=True)
+        df = df.dropna(subset=["Date"]).sort_values("Date").reset_index(drop=True)
     
     cols_to_keep = list(dict.fromkeys(st["feature_cols"] + [config["target_col"]]))
     numeric_df = df[cols_to_keep].copy()
@@ -208,15 +215,43 @@ def get_status(asset: str):
         if pred_info.get("predicted_price"):
             st["history"][str(current_calendar_date)] = pred_info["predicted_price"]
     
+    # Generate Rolling Metrics Log
+    log_arr = []
+    y_true = []
+    y_pred = []
+    
+    for i in range(idx):
+        past_date = str(test_df.iloc[i]["Date_obj"])
+        actual_val = float(test_df.iloc[i][config["target_col"]])
+        pred_val = st["history"].get(past_date)
+        
+        if pred_val is not None:
+            y_true.append(actual_val)
+            y_pred.append(pred_val)
+            log_arr.append({
+                "date": past_date,
+                "actual": round(actual_val, 2),
+                "predicted": round(pred_val, 2)
+            })
+            
+    # Calculate Rolling metrics
+    rolling_rmse = None
+    rolling_r2 = None
+    if len(y_true) > 1:
+        rolling_rmse = round(np.sqrt(mean_squared_error(y_true, y_pred)), 4)
+        rolling_r2 = round(r2_score(y_true, y_pred), 4)
+        
     yesterday_actual = None
     yesterday_pred = None
     yesterday_date = None
     
     if idx > 0:
-        y_row = test_df.iloc[idx - 1]
-        yesterday_date = str(y_row["Date_obj"])
-        yesterday_actual = round(y_row[config["target_col"]], 2)
-        yesterday_pred = st["history"].get(yesterday_date)
+        yesterday_actual = y_true[-1] if len(y_true) > 0 else None
+        yesterday_pred = y_pred[-1] if len(y_pred) > 0 else None
+        yesterday_date = log_arr[-1]["date"] if len(log_arr) > 0 else None
+        
+    # Send ordered history log (newest at the top visually preferably, but let JS handle it)
+    log_arr.reverse()
         
     return {
         "asset": asset,
@@ -227,7 +262,10 @@ def get_status(asset: str):
         "yesterday_date": yesterday_date,
         "yesterday_actual": yesterday_actual,
         "yesterday_pred": yesterday_pred,
-        "last_train_price": pred_info.get("last_train_price")
+        "last_train_price": pred_info.get("last_train_price"),
+        "rolling_rmse": rolling_rmse,
+        "rolling_r2": rolling_r2,
+        "history_log": log_arr
     }
 
 @app.post("/api/next_day/{asset}")
@@ -248,70 +286,13 @@ def next_day(asset: str):
     current_calendar_date = st["current_date"]
     
     if current_calendar_date == market_date:
-        today_row = test_df.iloc[[idx]].copy()
-        if "Date_obj" in today_row:
-            del today_row["Date_obj"]
-        
-        train_df = pd.read_csv(config["train_csv"])
-        updated_train = pd.concat([train_df, today_row], ignore_index=True)
-        updated_train.to_csv(config["train_csv"], index=False)
-        
         st["test_idx"] += 1
-        import_train_incremental(asset, config, st, updated_train)
-        message = "Assimilated market day and finetuned."
+        message = "Assimilated market day sequence (Frozen Weights preserved)."
     else:
         message = "Advanced non-market day."
         
     st["current_date"] = current_calendar_date + datetime.timedelta(days=1)
     return {"message": message}
-
-def import_train_incremental(asset, config, st, updated_train):
-    cols_to_keep = list(dict.fromkeys(st["feature_cols"] + [config["target_col"]]))
-    numeric_df = updated_train[cols_to_keep].copy()
-    
-    returns_df = numeric_df.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
-    
-    returns_df["target"] = returns_df[config["target_col"]].shift(-1)
-    returns_df = returns_df.dropna()
-    
-    n_samples = st["lookback"] + 32
-    if len(returns_df) > n_samples:
-        returns_df = returns_df.iloc[-n_samples:]
-        
-    X_raw = returns_df[st["feature_cols"]].values
-    y_raw = returns_df[["target"]].values
-    
-    X_scaled = st["x_scaler"].transform(X_raw)
-    y_scaled = st["y_scaler"].transform(y_raw)
-    
-    X_seq, y_seq = [], []
-    for i in range(st["lookback"], len(X_scaled)):
-        X_seq.append(X_scaled[i - st["lookback"]:i])
-        y_seq.append(y_scaled[i])
-        
-    if len(X_seq) == 0:
-        return
-        
-    X_seq = np.array(X_seq)
-    y_seq = np.array(y_seq)
-    
-    train_data = torch.utils.data.TensorDataset(torch.tensor(X_seq, dtype=torch.float32), torch.tensor(y_seq, dtype=torch.float32))
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=8, shuffle=True)
-    
-    criterion = nn.HuberLoss()
-    optimizer = optim.Adam(st["model"].parameters(), lr=1e-5) 
-    
-    st["model"].train()
-    for _ in range(2):
-        for bx, by in train_loader:
-            bx, by = bx.to(device), by.to(device)
-            optimizer.zero_grad()
-            loss = criterion(st["model"](bx), by)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(st["model"].parameters(), 1.0)
-            optimizer.step()
-            
-    torch.save(st["model"].state_dict(), os.path.join(config["model_dir"], config["model_pth"]))
 
 if __name__ == "__main__":
     import uvicorn
