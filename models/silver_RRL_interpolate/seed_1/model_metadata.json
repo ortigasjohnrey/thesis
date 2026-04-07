@@ -1,0 +1,18 @@
+{
+    "feature_cols": [
+        "Silver_Futures",
+        "Gold_Futures",
+        "US30",
+        "SnP500",
+        "NASDAQ_100",
+        "USD_index"
+    ],
+    "target_col": "target_t_plus_1",
+    "lookback": 28,
+    "model_file": "cnn_bilstm_seed1.pth",
+    "has_y_scaler": true,
+    "seed": 1,
+    "rmse_test": 0.417541685426855,
+    "r2_test": 0.9591628261274924,
+    "best_epoch": 5
+}

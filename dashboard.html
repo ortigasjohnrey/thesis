@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Forecasting Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0c10;
+            --surface: #14161f;
+            --surface-glass: rgba(20, 22, 31, 0.7);
+            --primary: #4ecca3;
+            --success: #3be282;
+            --danger: #ff5252;
+            --gold: #ffd700;
+            --silver: #c0c0c0;
+            --text-main: #e0e6ed;
+            --text-muted: #8892b0;
+            --card-border: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(78, 204, 163, 0.1), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(255, 215, 0, 0.05), transparent 25%);
+        }
+
+        header {
+            width: 100%;
+            padding: 2rem 0;
+            text-align: center;
+            border-bottom: 1px solid var(--card-border);
+            background: var(--surface-glass);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .asset-toggle {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .toggle-btn {
+            background: var(--surface);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 0.75rem 2rem;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn.active.gold {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: var(--gold);
+            color: var(--gold);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+        }
+
+        .toggle-btn.active.silver {
+            background: rgba(192, 192, 192, 0.15);
+            border-color: var(--silver);
+            color: var(--silver);
+            box-shadow: 0 0 15px rgba(192, 192, 192, 0.2);
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 90%;
+            margin: 3rem auto;
+            flex: 1;
+        }
+
+        .day-info {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .day-info h2 {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .date-badge {
+            display: inline-block;
+            background: rgba(78, 204, 163, 0.15);
+            color: var(--primary);
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            box-shadow: 0 4px 20px rgba(78, 204, 163, 0.2);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 4px;
+        }
+        
+        .card.today::before { background: var(--primary); }
+        .card.yesterday::before { background: var(--text-muted); }
+
+        .card h3 {
+            margin: 0 0 1.5rem 0;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .price-display {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .price-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        
+        .yesterday-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 1rem;
+        }
+        
+        .stat-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+        
+        .stat-diff {
+            font-size: 1.2rem;
+            font-weight: 800;
+            margin-top: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .diff-positive { color: var(--success); background: rgba(59, 226, 130, 0.1); }
+        .diff-negative { color: var(--danger); background: rgba(255, 82, 82, 0.1); }
+
+        .action-area {
+            text-align: center;
+            margin-top: 3rem;
+        }
+
+        .btn-next {
+            background: linear-gradient(135deg, #1aa37a, var(--primary));
+            color: #0b0c10;
+            border: none;
+            padding: 1.5rem 4rem;
+            border-radius: 40px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(78, 204, 163, 0.4);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn-next:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(78, 204, 163, 0.6);
+        }
+        
+        .btn-next:active {
+            transform: translateY(1px);
+        }
+        
+        .btn-next:disabled {
+            background: var(--surface);
+            color: var(--text-muted);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 12, 16, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(78, 204, 163, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 1.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            letter-spacing: 1px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Inference Simulation Engine</h1>
+        <div class="asset-toggle">
+            <button class="toggle-btn active gold" onclick="switchAsset('gold')" id="btn-gold">Gold Futures</button>
+            <button class="toggle-btn silver" onclick="switchAsset('silver')" id="btn-silver">Silver Futures</button>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <div class="day-info">
+            <h2>Target Simulation Date</h2>
+            <div class="date-badge" id="today-date">--</div>
+        </div>
+
+        <div class="dashboard-grid">
+            
+            <!-- Yesterday Card -->
+            <div class="card yesterday">
+                <h3>Previous Day Assessment</h3>
+                
+                <div class="yesterday-stats">
+                    <div class="stat-group">
+                        <span class="price-label">Actual Closing Price</span>
+                        <span class="stat-value" id="yest-actual">--</span>
+                    </div>
+                </div>
+                
+                <div class="yesterday-stats" style="margin-top: 1.5rem;">
+                    <div class="stat-group">
+                        <span class="price-label">Model Prediction</span>
+                        <span class="stat-value" id="yest-pred" style="color: var(--text-muted); font-size: 1.5rem">--</span>
+                    </div>
+                    <div class="stat-group" style="align-items: flex-end;">
+                        <span class="price-label">Error delta</span>
+                        <span class="stat-diff" id="yest-diff">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Today Card -->
+            <div class="card today">
+                <h3>Today's Forecast</h3>
+                <div class="price-display" id="today-pred" style="color: var(--primary);">--</div>
+                <div style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+                    Model inference computed using best Optuna parameters applied to previous market contexts. Actual closing price is currently withheld.
+                </div>
+                
+                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
+                    <span class="price-label">Model Retrained Using Data Up To:</span>
+                    <div style="font-weight: 600; margin-top: 0.5rem;" id="last-train-date">--</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="action-area">
+            <button class="btn-next" id="next-btn" onclick="nextDay()">
+                Proceed to Next Day
+            </button>
+            <div style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                This will append the true data to the Training CSV and micro-finetune the PyTorch model dynamically.
+            </div>
+        </div>
+
+    </div>
+
+    <div class="loading-overlay" id="loader">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loader-text">Micro-Finetuning Neural Network...</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        let currentAsset = 'gold';
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/status/${currentAsset}`);
+                const data = await res.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    document.getElementById('next-btn').disabled = true;
+                    return;
+                }
+
+                document.getElementById('today-date').innerText = data.current_date; // Native Calendar progression
+                
+                if (data.is_market_day) {
+                    const pred = data.predicted_price;
+                    document.getElementById('today-pred').innerText = pred ? `$${pred.toFixed(2)}` : '--';
+                    document.getElementById('today-pred').style.color = "var(--primary)";
+                } else {
+                    document.getElementById('today-pred').innerText = 'MARKET CLOSED';
+                    document.getElementById('today-pred').style.color = "var(--text-muted)";
+                }
+                
+                if(data.yesterday_actual && data.yesterday_pred) {
+                    document.getElementById('yest-actual').innerText = `$${data.yesterday_actual.toFixed(2)}`;
+                    document.getElementById('yest-pred').innerText = `$${data.yesterday_pred.toFixed(2)}`;
+                    
+                    const diff = data.yesterday_actual - data.yesterday_pred;
+                    const diffEl = document.getElementById('yest-diff');
+                    diffEl.innerText = `${diff > 0 ? '+' : ''}$${diff.toFixed(2)}`;
+                    diffEl.className = 'stat-diff ' + (Math.abs(diff) < 5 ? 'diff-positive' : 'diff-negative');
+                } else if(data.yesterday_actual) {
+                    // Have actual, but missed prediction
+                    document.getElementById('yest-actual').innerText = `$${data.yesterday_actual.toFixed(2)}`;
+                    document.getElementById('yest-pred').innerText = '--';
+                    document.getElementById('yest-diff').innerText = '--';
+                } else {
+                    document.getElementById('yest-actual').innerText = 'Started...';
+                    document.getElementById('yest-pred').innerText = '--';
+                    document.getElementById('yest-diff').innerText = '--';
+                    document.getElementById('yest-diff').className = 'stat-diff';
+                }
+                
+                document.getElementById('last-train-date').innerText = data.last_train_price ? `${data.yesterday_date || '-'} @ $${data.last_train_price.toFixed(2)}` : '--';
+                
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function nextDay() {
+            document.getElementById('loader').classList.add('active');
+            document.getElementById('next-btn').disabled = true;
+            
+            try {
+                await fetch(`${API_BASE}/next_day/${currentAsset}`, { method: 'POST' });
+                await fetchStatus();
+            } catch(e) {
+                alert("Failed to reach API.");
+            }
+            
+            document.getElementById('loader').classList.remove('active');
+            document.getElementById('next-btn').disabled = false;
+        }
+
+        function switchAsset(asset) {
+            currentAsset = asset;
+            document.getElementById('btn-gold').classList.remove('active');
+            document.getElementById('btn-silver').classList.remove('active');
+            document.getElementById('btn-' + asset).classList.add('active');
+            
+            fetchStatus();
+        }
+
+        // Init
+        fetchStatus();
+    </script>
+</body>
+</html>

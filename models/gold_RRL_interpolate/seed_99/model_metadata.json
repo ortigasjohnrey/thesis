@@ -1,0 +1,20 @@
+{
+    "feature_cols": [
+        "Gold_Futures",
+        "Silver_Futures",
+        "Crude_Oil_Futures",
+        "UST10Y_Treasury_Yield",
+        "Federal_Funds_Rate",
+        "Employment_Pop_Ratio",
+        "gepu",
+        "gpr_daily"
+    ],
+    "target_col": "target_t_plus_1",
+    "lookback": 32,
+    "model_file": "cnn_bilstm_seed99.pth",
+    "has_y_scaler": true,
+    "seed": 99,
+    "rmse_test": 18.257718493573183,
+    "r2_test": 0.9571506501684892,
+    "best_epoch": 5
+}

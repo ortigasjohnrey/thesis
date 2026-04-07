@@ -1,0 +1,119 @@
+2026-04-07 01:40:45,472 [WARNING] TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+2026-04-07 01:40:45,472 [WARNING] No GPU found. Training will bottleneck on CPU.
+2026-04-07 01:40:45,752 [INFO] Starting Trial 0 with params: lookback=29, filters=123, lstm=166
+2026-04-07 01:42:52,877 [WARNING] TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+2026-04-07 01:42:52,878 [WARNING] No GPU found. Training will bottleneck on CPU.
+2026-04-07 01:42:53,086 [INFO] Starting Trial 0 with params: lookback=29, filters=123, lstm=166
+2026-04-07 01:55:21,421 [WARNING] No GPU found. Training will bottleneck on CPU.
+2026-04-07 01:55:21,573 [INFO] Starting Trial 0 with params: lookback=29, filters=123, lstm=166
+2026-04-07 02:06:19,016 [INFO] GPU(s) found and memory growth enabled: 1
+2026-04-07 02:06:19,017 [WARNING] Mixed precision compatibility check (mixed_float16): WARNING
+Your GPU may run slowly with dtype policy mixed_float16 because it does not have compute capability of at least 7.0. Your GPU:
+  DML, no compute capability (probably not an Nvidia GPU)
+See https://developer.nvidia.com/cuda-gpus for a list of GPUs and their compute capabilities.
+If you will use compatible GPU(s) not attached to this host, e.g. by running a multi-worker model, you can ignore this warning. This message will only be logged once
+2026-04-07 02:06:19,017 [INFO] GPU optimization: Mixed precision globally set to 'mixed_float16'.
+2026-04-07 02:06:19,128 [INFO] Starting Trial 0 with params: lookback=29, filters=123, lstm=166
+2026-04-07 02:06:19,319 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:06:19,321 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:06:19,323 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:06:19,326 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:06:19,328 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:06:19,330 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:09:01,831 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:09:01,833 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:09:01,835 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:09:01,837 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:09:01,840 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:09:01,841 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:10:20,777 [INFO] GPU(s) found and memory growth enabled: 1
+2026-04-07 02:10:20,777 [WARNING] Mixed precision compatibility check (mixed_float16): WARNING
+Your GPU may run slowly with dtype policy mixed_float16 because it does not have compute capability of at least 7.0. Your GPU:
+  DML, no compute capability (probably not an Nvidia GPU)
+See https://developer.nvidia.com/cuda-gpus for a list of GPUs and their compute capabilities.
+If you will use compatible GPU(s) not attached to this host, e.g. by running a multi-worker model, you can ignore this warning. This message will only be logged once
+2026-04-07 02:10:20,777 [INFO] GPU optimization: Mixed precision globally set to 'mixed_float16'.
+2026-04-07 02:10:20,885 [INFO] Starting Trial 0 with params: lookback=29, filters=123, lstm=166
+2026-04-07 02:10:21,061 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:10:21,062 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:10:21,065 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:10:21,067 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:10:21,069 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:10:21,071 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:12:50,529 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:12:50,531 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:12:50,533 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:12:50,535 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:12:50,537 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:12:50,538 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:13:07,139 [INFO] GPU(s) found and memory growth enabled: 1
+2026-04-07 02:13:07,139 [WARNING] Mixed precision compatibility check (mixed_float16): WARNING
+Your GPU may run slowly with dtype policy mixed_float16 because it does not have compute capability of at least 7.0. Your GPU:
+  DML, no compute capability (probably not an Nvidia GPU)
+See https://developer.nvidia.com/cuda-gpus for a list of GPUs and their compute capabilities.
+If you will use compatible GPU(s) not attached to this host, e.g. by running a multi-worker model, you can ignore this warning. This message will only be logged once
+2026-04-07 02:13:07,139 [INFO] GPU optimization: Mixed precision globally set to 'mixed_float16'.
+2026-04-07 02:13:07,247 [INFO] Starting Trial 0 with params: lookback=29, filters=123, lstm=166
+2026-04-07 02:13:07,452 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:13:07,455 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:13:07,457 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:13:07,459 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:13:07,463 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:13:07,465 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:14:25,621 [INFO] GPU(s) found and memory growth enabled: 1
+2026-04-07 02:14:25,622 [WARNING] Mixed precision compatibility check (mixed_float16): WARNING
+Your GPU may run slowly with dtype policy mixed_float16 because it does not have compute capability of at least 7.0. Your GPU:
+  DML, no compute capability (probably not an Nvidia GPU)
+See https://developer.nvidia.com/cuda-gpus for a list of GPUs and their compute capabilities.
+If you will use compatible GPU(s) not attached to this host, e.g. by running a multi-worker model, you can ignore this warning. This message will only be logged once
+2026-04-07 02:14:25,622 [INFO] GPU optimization: Mixed precision globally set to 'mixed_float16'.
+2026-04-07 02:16:08,413 [INFO] GPU(s) found and memory growth enabled: 1
+2026-04-07 02:16:08,413 [WARNING] Mixed precision compatibility check (mixed_float16): WARNING
+Your GPU may run slowly with dtype policy mixed_float16 because it does not have compute capability of at least 7.0. Your GPU:
+  DML, no compute capability (probably not an Nvidia GPU)
+See https://developer.nvidia.com/cuda-gpus for a list of GPUs and their compute capabilities.
+If you will use compatible GPU(s) not attached to this host, e.g. by running a multi-worker model, you can ignore this warning. This message will only be logged once
+2026-04-07 02:16:08,413 [INFO] GPU optimization: Mixed precision globally set to 'mixed_float16'.
+2026-04-07 02:16:08,691 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:16:08,693 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:16:08,695 [WARNING] Layer lstm will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:16:08,697 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:16:08,699 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:16:08,700 [WARNING] Layer lstm_1 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:17:39,613 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:17:39,616 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:17:39,618 [WARNING] Layer lstm_2 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:17:39,619 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:17:39,621 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:17:39,622 [WARNING] Layer lstm_3 will not use cuDNN kernels since it doesn't meet the criteria. It will use a generic GPU kernel as fallback when running on GPU.
+2026-04-07 02:26:50,942 [INFO] GPU found: NVIDIA GeForce RTX 3060
+2026-04-07 02:37:22,408 [INFO] GPU found: NVIDIA GeForce RTX 3060
+2026-04-07 02:48:56,491 [INFO] SEED 0 EVALUATION
+2026-04-07 02:49:03,355 [INFO] SEED 1 EVALUATION
+2026-04-07 02:49:10,112 [INFO] SEED 2 EVALUATION
+2026-04-07 02:49:13,427 [INFO] SEED 42 EVALUATION
+2026-04-07 02:49:24,811 [INFO] SEED 99 EVALUATION
+2026-04-07 02:49:27,936 [INFO] SEED 123 EVALUATION
+2026-04-07 02:57:40,228 [INFO] GPU found: NVIDIA GeForce RTX 3060
+2026-04-07 03:05:35,314 [INFO] SEED 0 EVALUATION
+2026-04-07 03:05:39,223 [INFO] SEED 1 EVALUATION
+2026-04-07 03:05:45,535 [INFO] SEED 2 EVALUATION
+2026-04-07 03:05:49,987 [INFO] SEED 42 EVALUATION
+2026-04-07 03:05:54,412 [INFO] SEED 99 EVALUATION
+2026-04-07 03:05:58,665 [INFO] SEED 123 EVALUATION
+2026-04-07 03:45:12,504 [INFO] GPU found: NVIDIA GeForce RTX 3060
+2026-04-07 03:57:57,525 [INFO] GPU found: NVIDIA GeForce RTX 3060
+2026-04-07 04:08:41,075 [INFO] SEED 0 EVALUATION
+2026-04-07 04:08:50,403 [INFO] SEED 1 EVALUATION
+2026-04-07 04:08:58,569 [INFO] SEED 2 EVALUATION
+2026-04-07 04:09:06,615 [INFO] SEED 42 EVALUATION
+2026-04-07 04:09:11,517 [INFO] SEED 99 EVALUATION
+2026-04-07 04:09:20,406 [INFO] SEED 123 EVALUATION
+2026-04-08 01:27:40,667 [INFO] GPU found: NVIDIA GeForce RTX 3060
+2026-04-08 01:35:26,543 [INFO] GPU found: NVIDIA GeForce RTX 3060
+2026-04-08 01:45:29,123 [INFO] SEED 0 EVALUATION
+2026-04-08 01:45:33,239 [INFO] SEED 1 EVALUATION
+2026-04-08 01:45:36,078 [INFO] SEED 2 EVALUATION
+2026-04-08 01:45:38,433 [INFO] SEED 42 EVALUATION
+2026-04-08 01:45:40,348 [INFO] SEED 99 EVALUATION
+2026-04-08 01:45:43,026 [INFO] SEED 123 EVALUATION
