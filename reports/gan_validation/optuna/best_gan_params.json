@@ -1,0 +1,20 @@
+{
+  "best_value": 1.2870827637000402,
+  "best_params": {
+    "batch_size": 384,
+    "lr_g": 0.0002620863021537751,
+    "lr_d": 0.00012854415975274456,
+    "n_critic": 2,
+    "gen_hidden": 128,
+    "disc_hidden": 128,
+    "gen_dropout": 0.0772737450810651,
+    "moment_loss_weight": 0.5467236078827471,
+    "drift_loss_weight": 0.25212112147976884
+  },
+  "best_user_attrs": {
+    "gold_quality_label": "reject",
+    "silver_quality_label": "usable_with_caution",
+    "gold_avg_ks_stat": 0.16076693107649018,
+    "silver_avg_ks_stat": 0.10359778665665954
+  }
+}

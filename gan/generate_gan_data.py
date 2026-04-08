@@ -47,9 +47,12 @@ EPOCHS = int(os.getenv("GAN_EPOCHS", "250"))
 LR_G = float(os.getenv("GAN_LR_G", "0.0002"))
 LR_D = float(os.getenv("GAN_LR_D", "0.0002"))
 N_CRITIC = int(os.getenv("GAN_N_CRITIC", "3"))
-MSE_LOSS_WEIGHT = 1.0
-MOMENT_LOSS_WEIGHT = 0.75
-DRIFT_LOSS_WEIGHT = 0.25
+GEN_HIDDEN_SIZE = int(os.getenv("GAN_GEN_HIDDEN_SIZE", "128"))
+DISC_HIDDEN_SIZE = int(os.getenv("GAN_DISC_HIDDEN_SIZE", "128"))
+GEN_DROPOUT = float(os.getenv("GAN_GEN_DROPOUT", "0.10"))
+MSE_LOSS_WEIGHT = float(os.getenv("GAN_MSE_LOSS_WEIGHT", "1.0"))
+MOMENT_LOSS_WEIGHT = float(os.getenv("GAN_MOMENT_LOSS_WEIGHT", "0.75"))
+DRIFT_LOSS_WEIGHT = float(os.getenv("GAN_DRIFT_LOSS_WEIGHT", "0.25"))
 NUM_WORKERS = int(os.getenv("GAN_NUM_WORKERS", "0"))
 PIN_MEMORY = device.type == "cuda"
 USE_AMP = device.type == "cuda"
@@ -94,7 +97,7 @@ class Generator(nn.Module):
         self.head = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.GELU(),
-            nn.Dropout(0.1),
+            nn.Dropout(GEN_DROPOUT),
             nn.Linear(hidden_size, output_size),
             nn.Tanh(),
         )
@@ -442,7 +445,9 @@ def process_file(filepath):
     logging.info(
         f"Training config: batch_size={BATCH_SIZE}, epochs={EPOCHS}, "
         f"n_critic={N_CRITIC}, amp={USE_AMP}, workers={NUM_WORKERS}, "
-        f"candidates={NUM_CANDIDATES}, seeds={seed_list}"
+        f"candidates={NUM_CANDIDATES}, seeds={seed_list}, "
+        f"gen_hidden={GEN_HIDDEN_SIZE}, disc_hidden={DISC_HIDDEN_SIZE}, "
+        f"gen_dropout={GEN_DROPOUT}, lr_g={LR_G}, lr_d={LR_D}"
     )
 
     best_seed_run = None
@@ -454,8 +459,8 @@ def process_file(filepath):
         logging.info(f"--- Training seed {seed} for {filepath} ---")
 
         num_features = len(all_features)
-        netG = Generator(num_features, 128, num_features).to(device)
-        netD = Discriminator(num_features, 128).to(device)
+        netG = Generator(num_features, GEN_HIDDEN_SIZE, num_features).to(device)
+        netD = Discriminator(num_features, DISC_HIDDEN_SIZE).to(device)
         optG = optim.Adam(netG.parameters(), lr=LR_G, betas=(0.5, 0.9))
         optD = optim.Adam(netD.parameters(), lr=LR_D, betas=(0.5, 0.9))
         scaler_g = torch.amp.GradScaler("cuda", enabled=USE_AMP)
