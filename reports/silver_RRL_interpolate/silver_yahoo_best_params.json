@@ -1,11 +1,11 @@
 {
-    "lookback": 28,
-    "filters": 109,
-    "kernel_size": 2,
-    "lstm_units": 49,
-    "dense_units": 38,
-    "dropout_rate": 0.34718847919155993,
-    "learning_rate": 0.009796283486410892,
-    "l2_reg": 8.710789526303565e-05,
-    "batch_size": 128
+    "lookback": 16,
+    "filters": 28,
+    "kernel_size": 3,
+    "lstm_units": 117,
+    "dense_units": 36,
+    "dropout_rate": 0.37296872175003204,
+    "learning_rate": 0.003336387650247907,
+    "l2_reg": 0.0001718934716700621,
+    "batch_size": 32
 }

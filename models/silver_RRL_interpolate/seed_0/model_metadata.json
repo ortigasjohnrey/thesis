@@ -8,11 +8,11 @@
         "USD_index"
     ],
     "target_col": "target_t_plus_1",
-    "lookback": 28,
+    "lookback": 16,
     "model_file": "cnn_bilstm_seed0.pth",
     "has_y_scaler": true,
     "seed": 0,
-    "rmse_test": 0.4461267059954668,
-    "r2_test": 0.9533799813663417,
-    "best_epoch": 3
+    "rmse_test": 0.4167514227549718,
+    "r2_test": 0.9593172612666877,
+    "best_epoch": 13
 }

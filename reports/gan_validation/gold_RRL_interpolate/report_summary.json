@@ -9,67 +9,67 @@
     "null_cells": 0,
     "avg_vol_ratio": 1.001878,
     "max_vol_ratio_gap": 0.001878,
-    "avg_mean_gap_abs": 0.0,
-    "avg_ks_statistic": 0.205009,
-    "max_ks_statistic": 0.43138,
-    "avg_acf_gap_lag1": 0.152296,
-    "max_acf_gap_lag1": 0.508316,
-    "corr_matrix_mae": 0.290898,
-    "corr_matrix_max_gap": 0.741295,
+    "avg_mean_gap_abs": 1e-06,
+    "avg_ks_statistic": 0.18413,
+    "max_ks_statistic": 0.41055,
+    "avg_acf_gap_lag1": 0.139954,
+    "max_acf_gap_lag1": 0.380891,
+    "corr_matrix_mae": 0.237061,
+    "corr_matrix_max_gap": 0.648944,
     "share_features_vol_ratio_pass_0p8_to_1p2": 1.0,
-    "share_features_ks_pvalue_gt_0p05": 0.0,
+    "share_features_ks_pvalue_gt_0p05": 0.25,
     "share_features_acf_gap_lag1_lt_0p15": 0.75
   },
   "top_correlation_gaps": [
     {
-      "feature_a": "UST10Y_Treasury_Yield",
-      "feature_b": "gepu",
-      "abs_corr_gap": 0.7412952881765645
+      "feature_a": "Silver_Futures",
+      "feature_b": "UST10Y_Treasury_Yield",
+      "abs_corr_gap": 0.6489442134663103
     },
     {
       "feature_a": "Gold_Futures",
-      "feature_b": "gpr_daily",
-      "abs_corr_gap": 0.5663932536173198
-    },
-    {
-      "feature_a": "Silver_Futures",
-      "feature_b": "gpr_daily",
-      "abs_corr_gap": 0.5521226415190102
+      "feature_b": "UST10Y_Treasury_Yield",
+      "abs_corr_gap": 0.5621579101981986
     },
     {
       "feature_a": "Crude_Oil_Futures",
-      "feature_b": "gepu",
-      "abs_corr_gap": 0.5009453744253919
+      "feature_b": "Employment_Pop_Ratio",
+      "abs_corr_gap": 0.5251879197334026
     },
     {
       "feature_a": "Crude_Oil_Futures",
-      "feature_b": "UST10Y_Treasury_Yield",
-      "abs_corr_gap": 0.48701221355214547
-    },
-    {
-      "feature_a": "Employment_Pop_Ratio",
-      "feature_b": "gpr_daily",
-      "abs_corr_gap": 0.4756316800750401
-    },
-    {
-      "feature_a": "Employment_Pop_Ratio",
-      "feature_b": "UST10Y_Treasury_Yield",
-      "abs_corr_gap": 0.4236540247388896
+      "feature_b": "Federal_Funds_Rate",
+      "abs_corr_gap": 0.5211888771651559
     },
     {
       "feature_a": "Crude_Oil_Futures",
       "feature_b": "Silver_Futures",
-      "abs_corr_gap": 0.3856776772876315
+      "abs_corr_gap": 0.49280433433281917
     },
     {
       "feature_a": "Crude_Oil_Futures",
       "feature_b": "Gold_Futures",
-      "abs_corr_gap": 0.3302652500796033
+      "abs_corr_gap": 0.45050493640465616
     },
     {
-      "feature_a": "Silver_Futures",
+      "feature_a": "Crude_Oil_Futures",
       "feature_b": "UST10Y_Treasury_Yield",
-      "abs_corr_gap": 0.3269258317596021
+      "abs_corr_gap": 0.42337654033809263
+    },
+    {
+      "feature_a": "Employment_Pop_Ratio",
+      "feature_b": "Federal_Funds_Rate",
+      "abs_corr_gap": 0.4211474712891107
+    },
+    {
+      "feature_a": "Crude_Oil_Futures",
+      "feature_b": "gepu",
+      "abs_corr_gap": 0.2938514344822204
+    },
+    {
+      "feature_a": "UST10Y_Treasury_Yield",
+      "feature_b": "gpr_daily",
+      "abs_corr_gap": 0.27174722496862624
     }
   ]
 }

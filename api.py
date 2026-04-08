@@ -7,6 +7,7 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sklearn.metrics import mean_squared_error, r2_score
@@ -102,10 +103,77 @@ ASSET_CONFIG = {
     }
 }
 
+STATE_FILE = "simulation_state.json"
+
 state = {
     "gold": {"test_idx": 0, "model": None, "x_scaler": None, "y_scaler": None, "feature_cols": None, "lookback": None, "params": None, "current_date": None, "history": {}},
     "silver": {"test_idx": 0, "model": None, "x_scaler": None, "y_scaler": None, "feature_cols": None, "lookback": None, "params": None, "current_date": None, "history": {}}
 }
+
+def save_runtime_state():
+    payload = {}
+    for asset, st in state.items():
+        payload[asset] = {
+            "test_idx": int(st["test_idx"]),
+            "current_date": st["current_date"].isoformat() if st["current_date"] else None,
+            "history": {date_key: float(pred) for date_key, pred in st["history"].items()}
+        }
+
+    temp_path = f"{STATE_FILE}.tmp"
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    os.replace(temp_path, STATE_FILE)
+
+def load_runtime_state():
+    if not os.path.exists(STATE_FILE):
+        return
+
+    with open(STATE_FILE, "r", encoding="utf-8") as f:
+        persisted = json.load(f)
+
+    for asset in ASSET_CONFIG:
+        asset_state = persisted.get(asset)
+        if not asset_state:
+            continue
+
+        test_df = get_test_dates(asset)
+        min_date = test_df.iloc[0]["Date_obj"]
+        max_date = test_df.iloc[-1]["Date_obj"]
+        max_restore_date = max_date + datetime.timedelta(days=1)
+
+        current_date_raw = asset_state.get("current_date")
+        try:
+            current_date = datetime.date.fromisoformat(current_date_raw) if current_date_raw else min_date
+        except (TypeError, ValueError):
+            current_date = min_date
+
+        if current_date < min_date:
+            current_date = min_date
+        if current_date > max_restore_date:
+            current_date = max_restore_date
+
+        max_test_idx = len(test_df)
+        try:
+            test_idx = int(asset_state.get("test_idx", 0))
+        except (TypeError, ValueError):
+            test_idx = 0
+        test_idx = max(0, min(test_idx, max_test_idx))
+
+        raw_history = asset_state.get("history", {})
+        cleaned_history = {}
+        if isinstance(raw_history, dict):
+            for logged_date, pred in raw_history.items():
+                try:
+                    logged_date_obj = datetime.date.fromisoformat(logged_date)
+                    pred_value = float(pred)
+                except (TypeError, ValueError):
+                    continue
+                if min_date <= logged_date_obj <= max_date and logged_date_obj < current_date:
+                    cleaned_history[logged_date] = pred_value
+
+        state[asset]["current_date"] = current_date
+        state[asset]["test_idx"] = test_idx
+        state[asset]["history"] = cleaned_history
 
 def load_models():
     for asset, config in ASSET_CONFIG.items():
@@ -139,6 +207,7 @@ def load_models():
             state[asset]["current_date"] = pd.to_datetime(test_df.iloc[0]["Date"]).date()
 
 load_models()
+load_runtime_state()
 
 def predict_next_day(asset):
     config = ASSET_CONFIG[asset]
@@ -186,6 +255,12 @@ def predict_next_day(asset):
         "last_train_price": round(abs_last_price, 2)
     }
 
+def get_test_dates(asset):
+    test_df = pd.read_csv(ASSET_CONFIG[asset]["test_csv"])
+    test_df["Date_obj"] = pd.to_datetime(test_df["Date"], errors="coerce").dt.date
+    test_df = test_df.dropna(subset=["Date_obj"]).reset_index(drop=True)
+    return test_df
+
 @app.get("/")
 def get_dashboard():
     return FileResponse("dashboard.html")
@@ -199,8 +274,7 @@ def get_status(asset: str):
     st = state[asset]
     idx = st["test_idx"]
     
-    test_df = pd.read_csv(config["test_csv"])
-    test_df["Date_obj"] = pd.to_datetime(test_df["Date"]).dt.date
+    test_df = get_test_dates(asset)
     if idx >= len(test_df):
         return {"error": "Simulation finished, no more test data"}
         
@@ -214,6 +288,7 @@ def get_status(asset: str):
         pred_info = predict_next_day(asset)
         if pred_info.get("predicted_price"):
             st["history"][str(current_calendar_date)] = pred_info["predicted_price"]
+            save_runtime_state()
     
     # Generate Rolling Metrics Log
     log_arr = []
@@ -257,6 +332,8 @@ def get_status(asset: str):
         "asset": asset,
         "simulation_day": idx,
         "current_date": str(current_calendar_date),
+        "min_date": str(test_df.iloc[0]["Date_obj"]),
+        "max_date": str(test_df.iloc[-1]["Date_obj"]),
         "is_market_day": is_market_day,
         "predicted_price": pred_info.get("predicted_price"),
         "yesterday_date": yesterday_date,
@@ -292,7 +369,45 @@ def next_day(asset: str):
         message = "Advanced non-market day."
         
     st["current_date"] = current_calendar_date + datetime.timedelta(days=1)
+    save_runtime_state()
     return {"message": message}
+
+@app.post("/api/current_date/{asset}")
+def set_current_date(asset: str, date: str):
+    if asset not in ASSET_CONFIG:
+        return {"error": "Invalid asset"}
+
+    try:
+        selected_date = datetime.date.fromisoformat(date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Date must use YYYY-MM-DD format.") from exc
+
+    st = state[asset]
+    test_df = get_test_dates(asset)
+
+    min_date = test_df.iloc[0]["Date_obj"]
+    max_date = test_df.iloc[-1]["Date_obj"]
+    if selected_date < min_date or selected_date > max_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Date must be between {min_date} and {max_date}."
+        )
+
+    new_test_idx = int((test_df["Date_obj"] < selected_date).sum())
+    st["current_date"] = selected_date
+    st["test_idx"] = new_test_idx
+    st["history"] = {
+        logged_date: pred
+        for logged_date, pred in st["history"].items()
+        if datetime.date.fromisoformat(logged_date) < selected_date
+    }
+    save_runtime_state()
+
+    return {
+        "message": "Simulation date updated.",
+        "current_date": str(st["current_date"]),
+        "simulation_day": st["test_idx"]
+    }
 
 if __name__ == "__main__":
     import uvicorn

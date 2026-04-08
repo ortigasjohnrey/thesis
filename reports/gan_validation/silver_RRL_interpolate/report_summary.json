@@ -10,66 +10,66 @@
     "avg_vol_ratio": 1.001878,
     "max_vol_ratio_gap": 0.001878,
     "avg_mean_gap_abs": 0.0,
-    "avg_ks_statistic": 0.056838,
-    "max_ks_statistic": 0.075414,
-    "avg_acf_gap_lag1": 0.058316,
-    "max_acf_gap_lag1": 0.162952,
-    "corr_matrix_mae": 0.240753,
-    "corr_matrix_max_gap": 0.571587,
+    "avg_ks_statistic": 0.088533,
+    "max_ks_statistic": 0.117799,
+    "avg_acf_gap_lag1": 0.102582,
+    "max_acf_gap_lag1": 0.200511,
+    "corr_matrix_mae": 0.370782,
+    "corr_matrix_max_gap": 0.581444,
     "share_features_vol_ratio_pass_0p8_to_1p2": 1.0,
-    "share_features_ks_pvalue_gt_0p05": 1.0,
-    "share_features_acf_gap_lag1_lt_0p15": 0.833333
+    "share_features_ks_pvalue_gt_0p05": 0.333333,
+    "share_features_acf_gap_lag1_lt_0p15": 0.666667
   },
   "top_correlation_gaps": [
     {
-      "feature_a": "Silver_Futures",
-      "feature_b": "USD_index",
-      "abs_corr_gap": 0.5715874246064538
-    },
-    {
-      "feature_a": "Gold_Futures",
-      "feature_b": "USD_index",
-      "abs_corr_gap": 0.5270722490639683
-    },
-    {
       "feature_a": "Gold_Futures",
       "feature_b": "SnP500",
-      "abs_corr_gap": 0.3910736261960262
+      "abs_corr_gap": 0.5814444770170433
     },
     {
       "feature_a": "Gold_Futures",
       "feature_b": "US30",
-      "abs_corr_gap": 0.37659458523551625
+      "abs_corr_gap": 0.5712110062279496
+    },
+    {
+      "feature_a": "Silver_Futures",
+      "feature_b": "USD_index",
+      "abs_corr_gap": 0.5423135601569944
     },
     {
       "feature_a": "Gold_Futures",
       "feature_b": "NASDAQ_100",
-      "abs_corr_gap": 0.337860371620633
+      "abs_corr_gap": 0.5087825578779019
+    },
+    {
+      "feature_a": "US30",
+      "feature_b": "USD_index",
+      "abs_corr_gap": 0.48198527273460323
     },
     {
       "feature_a": "Silver_Futures",
       "feature_b": "US30",
-      "abs_corr_gap": 0.29423131689333915
+      "abs_corr_gap": 0.47741784090473705
     },
     {
       "feature_a": "Silver_Futures",
       "feature_b": "SnP500",
-      "abs_corr_gap": 0.28190420109320863
+      "abs_corr_gap": 0.4402576107071223
+    },
+    {
+      "feature_a": "SnP500",
+      "feature_b": "USD_index",
+      "abs_corr_gap": 0.4258490943127766
     },
     {
       "feature_a": "Gold_Futures",
-      "feature_b": "Silver_Futures",
-      "abs_corr_gap": 0.24022061240930948
+      "feature_b": "USD_index",
+      "abs_corr_gap": 0.38172992540699946
     },
     {
       "feature_a": "NASDAQ_100",
       "feature_b": "Silver_Futures",
-      "abs_corr_gap": 0.22383278598451928
-    },
-    {
-      "feature_a": "NASDAQ_100",
-      "feature_b": "US30",
-      "abs_corr_gap": 0.16918822743534045
+      "abs_corr_gap": 0.3536373263910653
     }
   ]
 }

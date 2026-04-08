@@ -115,6 +115,53 @@
             box-shadow: 0 4px 20px rgba(78, 204, 163, 0.2);
         }
 
+        .date-controls {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .date-input {
+            background: var(--surface);
+            color: var(--text-main);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 0.85rem 1rem;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .date-input::-webkit-calendar-picker-indicator {
+            filter: invert(0.9);
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background: rgba(78, 204, 163, 0.12);
+            color: var(--primary);
+            border: 1px solid rgba(78, 204, 163, 0.25);
+            border-radius: 14px;
+            padding: 0.9rem 1.2rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-1px);
+            background: rgba(78, 204, 163, 0.18);
+        }
+
+        .date-helper {
+            margin-top: 0.85rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -319,6 +366,23 @@
 
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .date-controls {
+                flex-direction: column;
+            }
+
+            .date-input,
+            .btn-secondary,
+            .btn-next {
+                width: 100%;
+                max-width: 340px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -336,6 +400,15 @@
         <div class="day-info">
             <h2>Target Simulation Date</h2>
             <div class="date-badge" id="today-date">--</div>
+            <div class="date-controls">
+                <input class="date-input" type="date" id="today-picker">
+                <button class="btn-secondary" id="set-date-btn" onclick="setSimulationDate()">
+                    Set This As Today
+                </button>
+            </div>
+            <div class="date-helper">
+                Pick any simulation day in the test window and the dashboard will realign to it.
+            </div>
         </div>
 
         <div class="dashboard-grid">
@@ -426,6 +499,13 @@
         let currentAsset = 'gold';
         let mainChart = null;
 
+        function setBusyState(isBusy) {
+            document.getElementById('loader').classList.toggle('active', isBusy);
+            document.getElementById('next-btn').disabled = isBusy;
+            document.getElementById('set-date-btn').disabled = isBusy;
+            document.getElementById('today-picker').disabled = isBusy;
+        }
+
         Chart.defaults.color = '#8892b0';
         Chart.defaults.font.family = 'Inter';
 
@@ -510,6 +590,9 @@
                 }
 
                 document.getElementById('today-date').innerText = data.current_date; 
+                document.getElementById('today-picker').value = data.current_date;
+                if (data.min_date) document.getElementById('today-picker').min = data.min_date;
+                if (data.max_date) document.getElementById('today-picker').max = data.max_date;
                 
                 if (data.is_market_day) {
                     const pred = data.predicted_price;
@@ -559,19 +642,39 @@
             }
         }
 
+        async function setSimulationDate() {
+            const selectedDate = document.getElementById('today-picker').value;
+            if (!selectedDate) {
+                alert('Choose a date first.');
+                return;
+            }
+
+            setBusyState(true);
+            try {
+                const res = await fetch(`${API_BASE}/current_date/${currentAsset}?date=${encodeURIComponent(selectedDate)}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.detail || 'Failed to update simulation date.');
+                    return;
+                }
+                await fetchStatus();
+            } catch (e) {
+                alert('Failed to reach API.');
+            }
+            setBusyState(false);
+        }
+
         async function nextDay() {
-            document.getElementById('loader').classList.add('active');
-            document.getElementById('next-btn').disabled = true;
-            
+            setBusyState(true);
             try {
                 await fetch(`${API_BASE}/next_day/${currentAsset}`, { method: 'POST' });
                 await fetchStatus();
             } catch(e) {
                 alert("Failed to reach API.");
             }
-            
-            document.getElementById('loader').classList.remove('active');
-            document.getElementById('next-btn').disabled = false;
+            setBusyState(false);
         }
 
         function switchAsset(asset) {
