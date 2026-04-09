@@ -1,0 +1,12 @@
+{
+    "source_path": "silver_RRL_interpolate_extended.csv",
+    "target_col": "Silver_Futures",
+    "horizon": 1,
+    "split_mode": "full_dataset",
+    "raw_train_rows": 2813,
+    "raw_test_rows": 0,
+    "model_train_rows": 2811,
+    "model_test_rows": 0,
+    "model_train_last_input_date": "2026-05-07",
+    "split_note": "The final model was selected with an internal validation slice and then refit on all available extended silver rows."
+}

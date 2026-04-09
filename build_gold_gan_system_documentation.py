@@ -11,6 +11,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 GAN_REPORT_DIR = ROOT / "reports" / "gan_validation" / "df_gold_dataset_gepu"
 FORECAST_REPORT_DIR = ROOT / "reports" / "df_gold_dataset_gepu_datecut_full"
+SILVER_GAN_REPORT_DIR = ROOT / "reports" / "gan_validation" / "silver_RRL_interpolate"
+SILVER_FORECAST_REPORT_DIR = ROOT / "reports" / "silver_RRL_interpolate"
 OUTPUT_HTML = FORECAST_REPORT_DIR / "gold_gan_system_documentation.html"
 
 
@@ -95,10 +97,19 @@ def main():
     best_params = read_json(FORECAST_REPORT_DIR / "gold_best_params_optimized.json")
     report_summary_text = (GAN_REPORT_DIR / "report_summary.md").read_text(encoding="utf-8")
     gan_cfg = latest_gold_training_config()
+    silver_candidate_metrics = read_json(SILVER_GAN_REPORT_DIR / "selected_candidate_metrics.json")
+    silver_forecast_metrics = read_json(SILVER_FORECAST_REPORT_DIR / "silver_actual_vs_prediction_extended_metrics.json")
+    silver_report_summary_text = (SILVER_GAN_REPORT_DIR / "report_summary.md").read_text(encoding="utf-8")
 
     strict_ready = candidate_metrics["quality_label"] != "reject" and candidate_metrics["avg_ks_stat"] <= 0.12 and candidate_metrics["avg_acf_gap"] <= 0.15 and candidate_metrics["corr_gap"] <= 0.25
     readiness_badge = badge("READY (strict gate)" if strict_ready else "NOT_READY (strict gate)", "ok" if strict_ready else "danger")
     quality_badge = badge(candidate_metrics["quality_label"], "ok" if candidate_metrics["quality_label"] == "good" else "warn")
+    silver_strict_ready = silver_candidate_metrics["quality_label"] != "reject" and silver_candidate_metrics["avg_ks_stat"] <= 0.12 and silver_candidate_metrics["avg_acf_gap"] <= 0.15 and silver_candidate_metrics["corr_gap"] <= 0.25
+    silver_readiness_badge = badge("READY (strict gate)" if silver_strict_ready else "NOT_READY (strict gate)", "ok" if silver_strict_ready else "danger")
+    silver_quality_badge = badge(
+        silver_candidate_metrics["quality_label"],
+        "ok" if silver_candidate_metrics["quality_label"] == "good" else ("warn" if silver_candidate_metrics["quality_label"] == "usable_with_caution" else "danger"),
+    )
 
     eval_df["signed_error"] = eval_df["predicted_price"] - eval_df["actual_price"]
     stage_plot = FORECAST_REPORT_DIR / "gold_dataset_lifecycle.png"
@@ -135,6 +146,20 @@ def main():
     ], columns=["Setting", "Value"])
     preview_df = eval_df[["date", "actual_price", "predicted_price", "abs_error", "pct_error"]].head(15).copy()
     preview_df["date"] = preview_df["date"].dt.strftime("%Y-%m-%d")
+    silver_summary_df = pd.DataFrame([
+        ["Prepared source ends", "2025-04-30"],
+        ["Extended dataset ends", silver_forecast_metrics["test_end_date"]],
+        ["Synthetic future rows", silver_forecast_metrics["synthetic_rows_in_eval"]],
+        ["Forecast eval rows", silver_forecast_metrics["test_rows"]],
+        ["GAN quality label", silver_candidate_metrics["quality_label"]],
+        ["Strict gate", "READY" if silver_strict_ready else "NOT_READY"],
+        ["Selected seed / candidate", f'{silver_candidate_metrics["seed"]} / {silver_candidate_metrics["candidate"]}'],
+    ], columns=["Metric", "Value"])
+    silver_threshold_df = pd.DataFrame([
+        ["avg_ks_stat", round(silver_candidate_metrics["avg_ks_stat"], 6), "<= 0.12", "Yes" if silver_candidate_metrics["avg_ks_stat"] <= 0.12 else "No"],
+        ["avg_acf_gap", round(silver_candidate_metrics["avg_acf_gap"], 6), "<= 0.15", "Yes" if silver_candidate_metrics["avg_acf_gap"] <= 0.15 else "No"],
+        ["corr_gap", round(silver_candidate_metrics["corr_gap"], 6), "<= 0.25", "Yes" if silver_candidate_metrics["corr_gap"] <= 0.25 else "No"],
+    ], columns=["Metric", "Current value", "Threshold", "Pass"])
 
     references = "".join(
         [
@@ -182,7 +207,19 @@ def main():
 {table_html(preview_df)}
 <h2>6. Interpretation and Safe Use</h2>
 <ul><li>The engineering pipeline now works end to end on the long gold horizon.</li><li>The long gold GAN currently passes the repo's strict readiness gate again.</li><li>The extended window is appropriate for dashboard simulation, internal stress testing, and behavior analysis.</li><li>The long-horizon synthetic test metrics should not be described as real-market out-of-sample performance.</li></ul>
-<h2>7. References</h2><ul>{references}</ul>
+<h2>7. Silver Results Snapshot</h2>
+<p>This appendix adds the current silver GAN and forecasting results into the same HTML so both asset pipelines are readable from one file.</p>
+<div class="summary-box"><strong>Silver snapshot.</strong> Silver is currently {silver_readiness_badge} with {silver_quality_badge}. Current metrics are avg_ks_stat = {silver_candidate_metrics["avg_ks_stat"]:.4f}, avg_acf_gap = {silver_candidate_metrics["avg_acf_gap"]:.4f}, and corr_gap = {silver_candidate_metrics["corr_gap"]:.4f}.</div>
+{table_html(silver_summary_df)}
+{table_html(silver_threshold_df)}
+<div class="{'ok-box' if silver_strict_ready else 'warning-box'}"><strong>Silver strict-gate verdict.</strong> {'The current silver run clears the repo gate.' if silver_strict_ready else 'The current silver run is structurally valid but does not clear the repo gate, mainly because correlation gap remains too high.'}</div>
+<pre class="report-summary">{html.escape(silver_report_summary_text)}</pre>
+<div class="grid-3"><div class="metric-card"><div class="label">Silver RMSE</div><div class="value">{silver_forecast_metrics["rmse"]:.3f}</div></div><div class="metric-card"><div class="label">Silver MAE</div><div class="value">{silver_forecast_metrics["mae"]:.3f}</div></div><div class="metric-card"><div class="label">Silver R2</div><div class="value">{silver_forecast_metrics["r2"]:.4f}</div></div><div class="metric-card"><div class="label">Silver MAPE</div><div class="value">{silver_forecast_metrics["mape_percent"]:.3f}%</div></div><div class="metric-card"><div class="label">Real eval rows</div><div class="value">{silver_forecast_metrics["real_rows_in_eval"]}</div></div><div class="metric-card"><div class="label">Synthetic eval rows</div><div class="value">{silver_forecast_metrics["synthetic_rows_in_eval"]}</div></div></div>
+<p>Silver evaluation window: {silver_forecast_metrics["test_start_date"]} to {silver_forecast_metrics["test_end_date"]}. The silver evaluation mixes real rows and synthetic extension rows.</p>
+{image_html(SILVER_FORECAST_REPORT_DIR / "silver_dataset_lifecycle.png", "Silver dataset lifecycle from source history to GAN extension and forecast evaluation window.")}
+{image_html(SILVER_FORECAST_REPORT_DIR / "silver_actual_vs_prediction_extended_test.png", "Silver actual vs predicted prices across the extended evaluation window.")}
+{image_html(SILVER_FORECAST_REPORT_DIR / "silver_prediction_error_over_time.png", "Silver prediction error over time.")}
+<h2>8. References</h2><ul>{references}</ul>
 </div></body></html>"""
 
     OUTPUT_HTML.parent.mkdir(parents=True, exist_ok=True)

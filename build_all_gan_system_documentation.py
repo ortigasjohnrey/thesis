@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -19,7 +20,11 @@ from dataset_catalog import get_all_dataset_configs  # noqa: E402
 
 
 REPORT_ROOT = ROOT / "reports" / "gan_validation"
-OUTPUT_HTML = REPORT_ROOT / "all_gan_system_documentation.html"
+OUTPUT_HTML = REPORT_ROOT / "GAN_Model.html"
+ALIAS_OUTPUTS = [
+    REPORT_ROOT / "all_gan_system_documentation.html",
+    ROOT / "reports" / "df_gold_dataset_gepu_datecut_full" / "gold_gan_system_documentation.html",
+]
 
 FORECAST_CONFIG = {
     "gold": {
@@ -178,6 +183,46 @@ def build_test_frame(asset: str, forecast_cfg: dict):
     return extended_df.loc[extended_df["Date"] > cutoff].copy().reset_index(drop=True)
 
 
+def build_model_frame(level_df: pd.DataFrame, target_col: str):
+    numeric_df = level_df.select_dtypes(include=[np.number]).copy()
+    work_df = numeric_df.copy()
+    work_df["P_t_abs"] = work_df[target_col]
+    returns_df = work_df[numeric_df.columns].pct_change().replace([float("inf"), float("-inf")], pd.NA).dropna()
+    returns_df["P_t_abs"] = work_df["P_t_abs"].loc[returns_df.index]
+    returns_df["target_t_plus_1"] = returns_df[target_col].shift(-1)
+    returns_df["P_t_plus_1_abs"] = returns_df["P_t_abs"].shift(-1)
+    model_df = returns_df.dropna().copy()
+    return model_df
+
+
+def safe_subset_metrics(eval_df: pd.DataFrame, label: str):
+    if eval_df.empty:
+        return {
+            "subset": label,
+            "rows": 0,
+            "start_date": "n/a",
+            "end_date": "n/a",
+            "rmse": "n/a",
+            "mae": "n/a",
+            "mape_percent": "n/a",
+            "r2": "n/a",
+            "directional_accuracy": "n/a",
+        }
+
+    r2_value = "n/a" if len(eval_df) < 2 else round(float(r2_score(eval_df["actual_price"], eval_df["predicted_price"])), 4)
+    return {
+        "subset": label,
+        "rows": int(len(eval_df)),
+        "start_date": str(eval_df["date"].min().date()),
+        "end_date": str(eval_df["date"].max().date()),
+        "rmse": round(float(mean_squared_error(eval_df["actual_price"], eval_df["predicted_price"]) ** 0.5), 4),
+        "mae": round(float(mean_absolute_error(eval_df["actual_price"], eval_df["predicted_price"])), 4),
+        "mape_percent": round(float(eval_df["pct_error"].mean()), 4),
+        "r2": r2_value,
+        "directional_accuracy": round(float(eval_df["direction_match"].mean()) * 100.0, 2),
+    }
+
+
 def make_eval_plot(eval_df: pd.DataFrame, output_path: Path, title: str):
     plt.figure(figsize=(14, 6))
     plt.plot(eval_df["date"], eval_df["actual_price"], linewidth=2, label="Actual")
@@ -205,16 +250,34 @@ def make_error_plot(eval_df: pd.DataFrame, output_path: Path, title: str):
     plt.close()
 
 
-def make_lifecycle_plot(source_df: pd.DataFrame, extended_df: pd.DataFrame, train_end_date: pd.Timestamp, target_col: str, output_path: Path, title: str):
-    future_df = extended_df.loc[extended_df["Date"] > source_df["Date"].max()].copy()
+def make_lifecycle_plot(
+    source_df: pd.DataFrame,
+    extended_df: pd.DataFrame,
+    observed_end_date: pd.Timestamp,
+    train_end_date: pd.Timestamp,
+    target_col: str,
+    output_path: Path,
+    title: str,
+):
+    future_df = extended_df.loc[extended_df["Date"] > observed_end_date].copy()
     test_df = extended_df.loc[extended_df["Date"] > train_end_date].copy()
+    observed_train_df = extended_df.loc[extended_df["Date"] <= min(train_end_date, observed_end_date)].copy()
+    generated_train_df = extended_df.loc[(extended_df["Date"] > observed_end_date) & (extended_df["Date"] <= train_end_date)].copy()
+    unused_real_df = test_df.loc[test_df["Date"] <= observed_end_date].copy()
+    unused_generated_df = test_df.loc[test_df["Date"] > observed_end_date].copy()
     plt.figure(figsize=(14, 6))
-    plt.plot(source_df["Date"], source_df[target_col], color="#4a4a4a", linewidth=1.2, label="Source history")
-    plt.plot(future_df["Date"], future_df[target_col], color="#d97706", linewidth=1.6, label="GAN extension")
-    plt.axvline(source_df["Date"].max(), color="#b45309", linestyle="--", linewidth=1.1, label="Last observed source date")
+    plt.plot(extended_df["Date"], extended_df[target_col], color="#4a4a4a", linewidth=1.2, label="Full extended series")
+    plt.plot(future_df["Date"], future_df[target_col], color="#d97706", linewidth=1.6, label="GAN-generated extension")
+    if not observed_train_df.empty:
+        plt.axvspan(observed_train_df["Date"].min(), observed_train_df["Date"].max(), color="#dcfce7", alpha=0.35, label="Observed rows used in forecast training")
+    if not generated_train_df.empty:
+        plt.axvspan(generated_train_df["Date"].min(), generated_train_df["Date"].max(), color="#fed7aa", alpha=0.45, label="GAN rows used in forecast training")
+    if not unused_real_df.empty:
+        plt.axvspan(unused_real_df["Date"].min(), unused_real_df["Date"].max(), color="#dbeafe", alpha=0.35, label="Observed rows not used in forecast training")
+    if not unused_generated_df.empty:
+        plt.axvspan(unused_generated_df["Date"].min(), unused_generated_df["Date"].max(), color="#fce7f3", alpha=0.35, label="GAN rows not used in forecast training")
+    plt.axvline(observed_end_date, color="#b45309", linestyle="--", linewidth=1.1, label="Last observed date used by GAN")
     plt.axvline(train_end_date, color="#2563eb", linestyle="--", linewidth=1.1, label="Forecast train end")
-    if not test_df.empty:
-        plt.axvspan(test_df["Date"].min(), test_df["Date"].max(), color="#dbeafe", alpha=0.35, label="Forecast evaluation window")
     plt.title(title)
     plt.xlabel("Date")
     plt.ylabel(target_col)
@@ -234,6 +297,8 @@ def evaluate_frozen_forecast(asset: str, dataset_cfg: dict):
     train_df = load_level_frame(forecast_cfg["train_csv"])
     test_df = build_test_frame(asset, forecast_cfg)
     source_df = load_level_frame(ROOT / dataset_cfg["source_file"])
+    prepared_path = ROOT / dataset_cfg["prepared_file"] if dataset_cfg.get("prepared_file") else ROOT / dataset_cfg["source_file"]
+    prepared_df = load_level_frame(prepared_path)
     extended_df = load_level_frame(forecast_cfg["extended_csv"])
 
     model = CNN_BiLSTM((metadata["lookback"], len(metadata["feature_cols"])), params)
@@ -248,7 +313,7 @@ def evaluate_frozen_forecast(asset: str, dataset_cfg: dict):
 
     context_df = train_df.copy()
     rows = []
-    source_last_date = source_df["Date"].max()
+    observed_end_date = prepared_df["Date"].max()
     for _, row in test_df.iterrows():
         cols = list(dict.fromkeys(metadata["feature_cols"] + [forecast_cfg["target_col"]]))
         numeric_df = context_df[cols].copy()
@@ -274,7 +339,7 @@ def evaluate_frozen_forecast(asset: str, dataset_cfg: dict):
                 "signed_error": signed_error,
                 "abs_error": abs(signed_error),
                 "pct_error": abs(signed_error) / actual_price * 100.0 if actual_price else 0.0,
-                "is_synthetic_actual": bool(row["Date"] > source_last_date),
+                "is_synthetic_actual": bool(row["Date"] > observed_end_date),
             }
         )
         context_df = pd.concat([context_df, row.to_frame().T], ignore_index=True)
@@ -315,7 +380,15 @@ def evaluate_frozen_forecast(asset: str, dataset_cfg: dict):
     metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     make_eval_plot(eval_df, plot_path, f"{asset.title()} actual vs predicted prices")
     make_error_plot(eval_df, error_plot_path, f"{asset.title()} prediction error over time")
-    make_lifecycle_plot(source_df, extended_df, train_df["Date"].max(), forecast_cfg["target_col"], lifecycle_plot_path, f"{asset.title()} dataset lifecycle")
+    make_lifecycle_plot(
+        source_df=source_df,
+        extended_df=extended_df,
+        observed_end_date=observed_end_date,
+        train_end_date=train_df["Date"].max(),
+        target_col=forecast_cfg["target_col"],
+        output_path=lifecycle_plot_path,
+        title=f"{asset.title()} dataset lifecycle",
+    )
 
     return {
         "forecast_cfg": forecast_cfg,
@@ -329,9 +402,11 @@ def evaluate_frozen_forecast(asset: str, dataset_cfg: dict):
         "error_plot_path": error_plot_path,
         "lifecycle_plot_path": lifecycle_plot_path,
         "source_df": source_df,
+        "prepared_df": prepared_df,
         "extended_df": extended_df,
         "train_df": train_df,
         "test_df": test_df,
+        "observed_end_date": observed_end_date,
     }
 
 
@@ -350,6 +425,10 @@ def build_asset_section(dataset_cfg: dict, eval_bundle: dict):
     metadata = eval_bundle["metadata"]
     params = eval_bundle["params"]
     forecast_metrics = eval_bundle["metrics"]
+    eval_df = eval_bundle["eval_df"]
+    observed_end_date = eval_bundle["observed_end_date"]
+    train_model_df = build_model_frame(train_df.set_index("Date"), eval_bundle["forecast_cfg"]["target_col"])
+    test_model_df = build_model_frame(test_df.set_index("Date"), eval_bundle["forecast_cfg"]["target_col"]) if not test_df.empty else pd.DataFrame()
 
     prep_summary = None
     prep_summary_path = report_dir / "source_preparation_summary.json"
@@ -371,6 +450,65 @@ def build_asset_section(dataset_cfg: dict, eval_bundle: dict):
         ]
     )
     stage_df = pd.DataFrame(stage_rows, columns=["Stage", "File", "Rows", "Start date", "End date", "Notes"])
+
+    observed_rows_used = train_df.loc[train_df["Date"] <= observed_end_date]
+    generated_rows_used = train_df.loc[train_df["Date"] > observed_end_date]
+    unused_real_rows = test_df.loc[test_df["Date"] <= observed_end_date]
+    unused_generated_rows = test_df.loc[test_df["Date"] > observed_end_date]
+
+    partition_df = pd.DataFrame(
+        [
+            [
+                "Observed rows used in forecast training",
+                int(len(observed_rows_used)),
+                str(observed_rows_used["Date"].min().date()) if not observed_rows_used.empty else "n/a",
+                str(observed_rows_used["Date"].max().date()) if not observed_rows_used.empty else "n/a",
+                "Observed price-level rows from the prepared/source dataset that were available to the frozen forecaster.",
+            ],
+            [
+                "GAN-generated rows used in forecast training",
+                int(len(generated_rows_used)),
+                str(generated_rows_used["Date"].min().date()) if not generated_rows_used.empty else "n/a",
+                str(generated_rows_used["Date"].max().date()) if not generated_rows_used.empty else "n/a",
+                "Synthetic rows appended before the forecasting train cutoff.",
+            ],
+            [
+                "Observed rows not used in forecast training",
+                int(len(unused_real_rows)),
+                str(unused_real_rows["Date"].min().date()) if not unused_real_rows.empty else "n/a",
+                str(unused_real_rows["Date"].max().date()) if not unused_real_rows.empty else "n/a",
+                "Held-out observed rows used only for prediction/evaluation, not for fitting the frozen forecaster.",
+            ],
+            [
+                "GAN-generated rows not used in forecast training",
+                int(len(unused_generated_rows)),
+                str(unused_generated_rows["Date"].min().date()) if not unused_generated_rows.empty else "n/a",
+                str(unused_generated_rows["Date"].max().date()) if not unused_generated_rows.empty else "n/a",
+                "Held-out synthetic rows used only for prediction/evaluation, not for fitting the frozen forecaster.",
+            ],
+        ],
+        columns=["Partition", "Rows", "Start date", "End date", "Meaning"],
+    )
+
+    model_window_df = pd.DataFrame(
+        [
+            [
+                "Forecast-train model rows",
+                int(len(train_model_df)),
+                str(train_model_df.index.min().date()) if not train_model_df.empty else "n/a",
+                str(train_model_df.index.max().date()) if not train_model_df.empty else "n/a",
+                "These are the actual supervised rows after pct_change() and the t+1 target shift.",
+            ],
+            [
+                "Forecast-eval model rows",
+                int(len(test_model_df)),
+                str(test_model_df.index.min().date()) if not test_model_df.empty else "n/a",
+                str(test_model_df.index.max().date()) if not test_model_df.empty else "n/a",
+                "These rows were not used for fitting; they are forecast contexts/targets only.",
+            ],
+        ],
+        columns=["Model partition", "Rows", "First model date", "Last model date", "Notes"],
+    )
 
     thresholds_df = pd.DataFrame(
         [
@@ -414,14 +552,32 @@ def build_asset_section(dataset_cfg: dict, eval_bundle: dict):
     else:
         notes_html = "<p>No extra preparation step was configured for this dataset; the GAN used the source file directly.</p>"
 
-    preview_df = eval_bundle["eval_df"][["date", "actual_price", "predicted_price", "abs_error", "pct_error", "is_synthetic_actual"]].head(12).copy()
+    preview_df = eval_df[["date", "actual_price", "predicted_price", "abs_error", "pct_error", "is_synthetic_actual"]].head(12).copy()
     preview_df["date"] = preview_df["date"].dt.strftime("%Y-%m-%d")
-    top_errors_df = eval_bundle["eval_df"].nlargest(10, "abs_error")[["date", "actual_price", "predicted_price", "abs_error", "pct_error", "is_synthetic_actual"]].copy()
+    top_errors_df = eval_df.nlargest(10, "abs_error")[["date", "actual_price", "predicted_price", "abs_error", "pct_error", "is_synthetic_actual"]].copy()
     top_errors_df["date"] = top_errors_df["date"].dt.strftime("%Y-%m-%d")
+
+    subset_metrics_df = pd.DataFrame(
+        [
+            safe_subset_metrics(eval_df, "All rows not used in forecast training"),
+            safe_subset_metrics(eval_df.loc[~eval_df["is_synthetic_actual"]].copy(), "Observed rows not used in forecast training"),
+            safe_subset_metrics(eval_df.loc[eval_df["is_synthetic_actual"]].copy(), "GAN-generated rows not used in forecast training"),
+        ]
+    )
 
     quality_cls = "ok" if selected_metrics["quality_label"] == "good" else ("warn" if selected_metrics["quality_label"] == "usable_with_caution" else "danger")
     readiness_text = "READY" if thresholds_df["Pass"].eq("Yes").all() and selected_metrics["quality_label"] != "reject" else "NOT_READY"
     readiness_cls = "ok" if readiness_text == "READY" else "danger"
+
+    validity_points = [
+        "The extended file is structurally valid: no duplicate dates, no null cells, and the generated horizon reaches the intended end date.",
+        f"The current selected GAN candidate is rated {selected_metrics['quality_label']} and clears the repo gate with avg_ks_stat={selected_metrics['avg_ks_stat']:.4f}, avg_acf_gap={selected_metrics['avg_acf_gap']:.4f}, and corr_gap={selected_metrics['corr_gap']:.4f}."
+        if readiness_text == "READY"
+        else f"The current selected GAN candidate is structurally usable but does not fully clear the repo gate because one or more metrics miss the thresholds.",
+        "The forecasting model predictions shown below are produced on rows that were not used to fit the frozen forecasting model.",
+        "This makes the report valid for internal model-behavior analysis, dataset-extension validation, and simulation testing.",
+        "The key limitation is that any evaluation rows marked as GAN-generated are synthetic actuals, so they support internal validation rather than real-market performance claims.",
+    ]
 
     return f"""
 <section class="asset-section">
@@ -432,13 +588,16 @@ def build_asset_section(dataset_cfg: dict, eval_bundle: dict):
     <div class="metric-card"><div class="label">Forecast eval rows</div><div class="value">{forecast_metrics["test_rows"]}</div></div>
     <div class="metric-card"><div class="label">Synthetic rows in eval</div><div class="value">{forecast_metrics["synthetic_rows_in_eval"]}</div></div>
   </div>
-  <p>This section covers the current configured GAN dataset <span class="mono">{dataset_cfg["name"]}</span> and the frozen forecasting model attached to the <span class="mono">{asset}</span> pipeline.</p>
+  <p>This section covers the current configured GAN dataset <span class="mono">{dataset_cfg["name"]}</span> and the frozen forecasting model attached to the <span class="mono">{asset}</span> pipeline. It separates the observed history, the GAN-generated extension, the part used in forecast training, and the part left unused for prediction-only evaluation.</p>
   <h3>Dataset Lifecycle</h3>
   {table_html(stage_df)}
+  <h3>What Was Used For Forecast Training And What Was Not</h3>
+  {table_html(partition_df)}
+  {table_html(model_window_df)}
   <h3>Preparation Notes</h3>
   {notes_html}
   {missingness_html}
-  {render_image(eval_bundle["lifecycle_plot_path"], f"{asset.title()} dataset lifecycle from source history to GAN extension and forecast evaluation window.")}
+  {render_image(eval_bundle["lifecycle_plot_path"], f"{asset.title()} dataset lifecycle showing observed training data, GAN-generated training data, and rows not used in forecast training.")}
   <h3>GAN Readiness Metrics</h3>
   {table_html(thresholds_df)}
   <ul>
@@ -459,7 +618,7 @@ def build_asset_section(dataset_cfg: dict, eval_bundle: dict):
   {table_html(model_df)}
   <p>Forecast features: <span class="mono">{", ".join(metadata["feature_cols"])}</span></p>
   {render_image(eval_bundle["forecast_cfg"]["report_dir"] / "plots" / eval_bundle["forecast_cfg"]["plot_name"], f"{asset.title()} original saved-model prediction plot.")}
-  <h3>Actual vs Prediction Over the Extended Evaluation Window</h3>
+  <h3>Prediction On Data Not Used In Forecast Training</h3>
   <div class="grid-4">
     <div class="metric-card"><div class="label">RMSE</div><div class="value">{forecast_metrics["rmse"]:.2f}</div></div>
     <div class="metric-card"><div class="label">MAE</div><div class="value">{forecast_metrics["mae"]:.2f}</div></div>
@@ -467,12 +626,17 @@ def build_asset_section(dataset_cfg: dict, eval_bundle: dict):
     <div class="metric-card"><div class="label">MAPE</div><div class="value">{forecast_metrics["mape_percent"]:.3f}%</div></div>
   </div>
   <p class="small">Evaluation window: <span class="mono">{forecast_metrics["test_start_date"]}</span> to <span class="mono">{forecast_metrics["test_end_date"]}</span>. Real rows in evaluation: <span class="mono">{forecast_metrics["real_rows_in_eval"]}</span>. Synthetic rows in evaluation: <span class="mono">{forecast_metrics["synthetic_rows_in_eval"]}</span>.</p>
+  {table_html(subset_metrics_df)}
   {render_image(eval_bundle["plot_path"], f"{asset.title()} actual vs predicted prices over the extended evaluation window.")}
   {render_image(eval_bundle["error_plot_path"], f"{asset.title()} prediction error over time.")}
   <h4>First 12 Evaluation Rows</h4>
   {table_html(preview_df)}
   <h4>Top 10 Worst Absolute Errors</h4>
   {table_html(top_errors_df)}
+  <h3>Discussion And Validity Justification</h3>
+  <ul>
+    {''.join(f"<li>{html.escape(point)}</li>" for point in validity_points)}
+  </ul>
 </section>
 """
 
@@ -484,16 +648,16 @@ def build_html(asset_sections: list[str], summary_df: pd.DataFrame):
     )
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>All GAN System Documentation</title>
+<title>GAN Model Documentation</title>
 <style>
 body{{font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff;margin:0;line-height:1.55}} .page{{max-width:1220px;margin:0 auto;padding:28px 20px 60px}} h1,h2,h3,h4{{margin-top:0;color:#111827}} h1{{font-size:30px}} h2{{font-size:24px;border-bottom:1px solid #e5e7eb;padding-bottom:8px;margin-top:34px}} h3{{font-size:18px;margin-top:24px}} p,li{{font-size:15px}} .muted{{color:#4b5563}} .summary-box,.warning-box{{padding:16px 18px;margin:16px 0 24px;border:1px solid #d1d5db;background:#f9fafb}} .warning-box{{border-color:#f59e0b;background:#fffbeb}} .grid-4{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}} .metric-card{{border:1px solid #d1d5db;padding:14px;background:#fff}} .metric-card .label{{font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:.03em}} .metric-card .value{{font-size:24px;font-weight:700;margin-top:6px}} .badge{{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}} .badge.ok{{background:#dcfce7;color:#166534}} .badge.warn{{background:#fef3c7;color:#92400e}} .badge.danger{{background:#fee2e2;color:#991b1b}} .data-table{{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px}} .data-table th,.data-table td{{border:1px solid #d1d5db;padding:8px 10px;text-align:left;vertical-align:top}} .data-table th{{background:#f3f4f6}} .plot{{margin:18px 0 28px;border:1px solid #d1d5db;padding:12px;background:#fff}} .plot img{{width:100%;height:auto;display:block}} .plot figcaption{{margin-top:10px;color:#4b5563;font-size:14px}} .report-summary{{white-space:pre-wrap;background:#f9fafb;border:1px solid #d1d5db;padding:12px;font-size:13px;overflow-x:auto}} .mono{{font-family:Consolas,Menlo,monospace}} .small{{font-size:13px}} .missing-asset{{border:1px dashed #9ca3af;padding:16px;color:#6b7280;margin:16px 0}} @media (max-width:900px){{.grid-4{{grid-template-columns:1fr}}}}
 </style></head><body><div class="page">
-<h1>All GAN System Documentation</h1>
-<p class="muted">This report covers all currently configured GAN datasets in <span class="mono">gan/dataset_catalog.py</span>, which are the gold GEPU dataset and the silver interpolation dataset. It explains why GAN is being used in this forecasting system, what each GAN produced, how each synthetic extension was evaluated, and how each frozen forecasting model performed on its evaluation window.</p>
-<div class="summary-box"><strong>System-level interpretation.</strong> In this repo, GANs are scenario builders and dataset extenders, not the final forecasting models. They create future-dated multivariate panels so the downstream forecasters can be analyzed over longer windows. The forecasting models remain frozen CNN-BiLSTM predictors.</div>
+<h1>GAN Model Documentation</h1>
+<p class="muted">This file supersedes the old gold-only HTML and combines the current gold and silver GAN pipelines into one readable report. It explains why GAN is being used in this forecasting system, what each GAN produced, what the forecasters were trained on, what was left out of training, and how the predictions behaved on the unused data.</p>
+<div class="summary-box"><strong>System-level interpretation.</strong> In this repo, GANs are scenario builders and dataset extenders, not the final forecasting models. They create future-dated multivariate panels so the downstream CNN-BiLSTM forecasters can be evaluated on longer horizons. A GAN run is considered valid here when the extended file is structurally sound and the selected candidate preserves return-space distribution, autocorrelation, and cross-feature correlation closely enough to pass the repo thresholds.</div>
 <h2>Why GAN Is Used In This System</h2>
 <ul><li>The forecasters consume multiple interacting market and macro variables, not only one target series.</li><li>The training pipelines operate in return space, so synthetic data should preserve return distributions and dependence structure rather than only smooth price levels.</li><li>Simple interpolation is usually too smooth for financial time series and does not preserve cross-feature joint behavior.</li><li>GANs are being used here as multivariate future panel generators for augmentation, synthetic holdouts, and dashboard simulations.</li></ul>
-<div class="warning-box"><strong>Important boundary.</strong> Good synthetic behavior does not automatically prove real-market forecasting skill. In several sections below, the evaluation "actuals" are partly or fully synthetic because they come from the extended GAN datasets themselves.</div>
+<div class="warning-box"><strong>Important boundary.</strong> Good synthetic behavior does not automatically prove real-market forecasting skill. In the sections below, any evaluation rows marked as GAN-generated are synthetic actuals. They support internal validation and simulation, not real-market performance claims.</div>
 <h2>Cross-Asset Summary</h2>
 {table_html(summary_df)}
 {''.join(asset_sections)}
@@ -513,6 +677,9 @@ def main():
         eval_bundle = evaluate_frozen_forecast(asset, dataset_cfg)
         selected_metrics = read_json(ROOT / "reports" / "gan_validation" / dataset_cfg["name"] / "selected_candidate_metrics.json")
         forecast_metrics = eval_bundle["metrics"]
+        observed_end_date = eval_bundle["observed_end_date"]
+        train_df = eval_bundle["train_df"]
+        test_df = eval_bundle["test_df"]
         strict_ready = (
             selected_metrics["quality_label"] != "reject"
             and selected_metrics["avg_ks_stat"] <= 0.12
@@ -528,8 +695,10 @@ def main():
                 "GAN avg_ks_stat": round(selected_metrics["avg_ks_stat"], 4),
                 "GAN avg_acf_gap": round(selected_metrics["avg_acf_gap"], 4),
                 "GAN corr_gap": round(selected_metrics["corr_gap"], 4),
-                "Forecast rows": forecast_metrics["test_rows"],
-                "Synthetic eval rows": forecast_metrics["synthetic_rows_in_eval"],
+                "Observed rows used in training": int((train_df["Date"] <= observed_end_date).sum()),
+                "GAN rows used in training": int((train_df["Date"] > observed_end_date).sum()),
+                "Rows not used in training": int(len(test_df)),
+                "GAN rows not used in training": int((test_df["Date"] > observed_end_date).sum()),
                 "Forecast RMSE": round(forecast_metrics["rmse"], 4),
                 "Forecast R2": round(forecast_metrics["r2"], 4),
             }
@@ -537,7 +706,11 @@ def main():
         asset_sections.append(build_asset_section(dataset_cfg, eval_bundle))
 
     summary_df = pd.DataFrame(summary_rows)
-    OUTPUT_HTML.write_text(build_html(asset_sections, summary_df), encoding="utf-8")
+    html_text = build_html(asset_sections, summary_df)
+    OUTPUT_HTML.write_text(html_text, encoding="utf-8")
+    for alias_path in ALIAS_OUTPUTS:
+        alias_path.parent.mkdir(parents=True, exist_ok=True)
+        alias_path.write_text(html_text, encoding="utf-8")
     print(f"Wrote {OUTPUT_HTML}")
 
 

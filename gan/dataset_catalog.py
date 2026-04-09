@@ -44,9 +44,16 @@ DATASET_CONFIGS = [
         "target_col": "Silver_Futures",
         "deterministic_feature_overrides": {},
         "score_exclude_cols": [],
-        "correlation_align_cols": [],
+        "correlation_align_cols": [
+            "Silver_Futures",
+            "Gold_Futures",
+            "US30",
+            "SnP500",
+            "NASDAQ_100",
+            "USD_index",
+        ],
         "seed_env": "GAN_SILVER_SEEDS",
-        "default_seeds": [0],
+        "default_seeds": [0, 1, 2, 3],
     },
 ]
 
