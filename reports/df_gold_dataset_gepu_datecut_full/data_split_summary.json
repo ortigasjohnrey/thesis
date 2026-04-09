@@ -1,14 +1,9 @@
 {
-    "source_path": "df_gold_dataset_gepu_extended.csv",
-    "target_col": "Gold_Futures",
-    "horizon": 1,
-    "split_mode": "date_cutoff",
-    "requested_train_end_date": "2026-04-09",
-    "raw_train_rows": 2878,
-    "raw_test_rows": 21,
-    "model_train_rows": 2876,
-    "model_test_rows": 21,
-    "model_train_last_input_date": "2026-04-08",
-    "model_test_first_input_date": "2026-04-09",
-    "split_note": "Because horizon=1, rows dated on the requested cutoff predict the next date and are assigned to test."
+  "requested_train_end_date": "2026-04-09",
+  "raw_train_first_date": "2015-03-31",
+  "raw_train_last_date": "2026-04-09",
+  "raw_train_rows": 2878,
+  "raw_test_first_date": "2026-04-10",
+  "raw_test_last_date": "2026-12-31",
+  "raw_test_rows": 190
 }

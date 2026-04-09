@@ -1,17 +1,16 @@
 {
   "asset": "gold",
   "dataset_label": "GEPU Extended Date-Cut Model",
-  "prediction_mode": "precomputed_frozen_model",
   "test_rows": 190,
   "test_start_date": "2026-04-10",
   "test_end_date": "2026-12-31",
-  "rmse": 41.70126978377217,
-  "mae": 34.980578947368464,
-  "mape_percent": 0.7663633162544743,
-  "r2": 0.8543712451996633,
-  "directional_accuracy": 0.5947368421052631,
-  "mean_actual": 4570.023947368421,
-  "mean_predicted": 4575.442842105263,
-  "max_abs_error": 97.55999999999949,
-  "worst_date": "2026-12-24"
+  "real_rows_in_eval": 0,
+  "synthetic_rows_in_eval": 190,
+  "rmse": 35.71772672474212,
+  "mae": 30.28004379598425,
+  "mape_percent": 0.690579818042408,
+  "r2": 0.9247825862912972,
+  "directional_accuracy": 0.4842105263157895,
+  "max_abs_error": 81.61341399375578,
+  "worst_date": "2026-10-15"
 }

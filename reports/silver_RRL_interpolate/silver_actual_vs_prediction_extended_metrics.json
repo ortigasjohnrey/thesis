@@ -1,0 +1,16 @@
+{
+  "asset": "silver",
+  "dataset_label": "Baseline Silver Model",
+  "test_rows": 777,
+  "test_start_date": "2023-04-19",
+  "test_end_date": "2026-05-08",
+  "real_rows_in_eval": 510,
+  "synthetic_rows_in_eval": 267,
+  "rmse": 0.5811078445749412,
+  "mae": 0.4272610545083158,
+  "mape_percent": 1.4383609275838565,
+  "r2": 0.9838553114048754,
+  "directional_accuracy": 0.48906048906048905,
+  "max_abs_error": 3.3522095477674156,
+  "worst_date": "2025-05-01"
+}
