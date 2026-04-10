@@ -566,6 +566,16 @@
                             tension: 0,
                             pointRadius: 0,
                             pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Pending Forecast',
+                            data: [],
+                            borderColor: currentAsset === 'gold' ? '#ffd700' : '#4ecca3',
+                            backgroundColor: currentAsset === 'gold' ? '#ffd700' : '#4ecca3',
+                            borderWidth: 0,
+                            showLine: false,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
                         }
                     ]
                 },
@@ -592,6 +602,8 @@
             if (!mainChart) initChart();
             
             mainChart.data.datasets[1].borderColor = currentAsset === 'gold' ? '#ffd700' : '#4ecca3';
+            mainChart.data.datasets[2].borderColor = currentAsset === 'gold' ? '#ffd700' : '#4ecca3';
+            mainChart.data.datasets[2].backgroundColor = currentAsset === 'gold' ? '#ffd700' : '#4ecca3';
 
             let labels = [];
             let actualSeries = [];
@@ -605,21 +617,34 @@
                 predictedSeries = chronoLog.map(r => r.predicted);
             }
 
-            // Keep the chart current by appending the active forecast target point
-            // even before actual close is available.
+            // Keep the chart current by appending the active forecast target date.
+            // We render pending forecast as a separate point so historical comparison
+            // (actual vs predicted) stays visually consistent and date-aligned.
+            let pendingSeries = new Array(labels.length).fill(null);
             if (forecastDate && forecastPred !== null && forecastPred !== undefined) {
-                if (labels[labels.length - 1] !== forecastDate) {
+                let pendingIdx = labels.indexOf(forecastDate);
+                if (pendingIdx === -1) {
+                    pendingIdx = labels.length;
                     labels.push(forecastDate);
                     actualSeries.push(null);
-                    predictedSeries.push(forecastPred);
+                    predictedSeries.push(null);
+                    pendingSeries.push(forecastPred);
                 } else {
-                    predictedSeries[predictedSeries.length - 1] = forecastPred;
+                    pendingSeries[pendingIdx] = forecastPred;
                 }
+
+                if (pendingIdx >= pendingSeries.length) {
+                    pendingSeries = new Array(labels.length).fill(null);
+                    pendingSeries[pendingIdx] = forecastPred;
+                }
+            } else {
+                pendingSeries = new Array(labels.length).fill(null);
             }
 
             mainChart.data.labels = labels;
             mainChart.data.datasets[0].data = actualSeries;
             mainChart.data.datasets[1].data = predictedSeries;
+            mainChart.data.datasets[2].data = pendingSeries;
             mainChart.update();
         }
 
