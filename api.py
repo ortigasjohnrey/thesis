@@ -95,13 +95,13 @@ ASSET_CONFIG = {
         "dataset_label": "GEPU Extended Date-Cut Model",
     },
     "silver": {
-        "train_csv": "silver_RRL_interpolate_train.csv",
-        "test_csv": "silver_RRL_interpolate_test.csv",
+        "train_csv": "silver_RRL_interpolate_extended_train.csv",
+        "test_csv": "silver_RRL_interpolate_extended_test.csv",
         "best_params": "reports/silver_RRL_interpolate/silver_yahoo_best_params.json",
         "model_dir": "models/silver_RRL_interpolate/seed_42",
         "model_pth": "cnn_bilstm_seed42.pth",
         "target_col": "Silver_Futures",
-        "dataset_label": "Baseline Silver Model",
+        "dataset_label": "Silver Extended Model (Real + Synthetic Horizon)",
     }
 }
 
