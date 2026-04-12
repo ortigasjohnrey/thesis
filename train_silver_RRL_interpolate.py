@@ -4,7 +4,6 @@ import os
 import pickle
 import random
 import warnings
-
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
@@ -15,11 +14,13 @@ import torch.optim as optim
 from optuna.samplers import TPESampler
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler, StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
+torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.deterministic = False
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings('ignore')
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 logging.basicConfig(
@@ -90,15 +91,15 @@ TRAIN_SPLIT_EXPORT_PATH = os.getenv("SILVER_TRAIN_SPLIT_EXPORT_PATH", f"{DATASET
 TEST_SPLIT_EXPORT_PATH = os.getenv("SILVER_TEST_SPLIT_EXPORT_PATH", f"{DATASET_BASENAME}_test.csv")
 
 PBOUNDS = {
-    "lookback": parse_range_env("SILVER_LOOKBACK_RANGE", (10, 60), int),
-    "filters": parse_range_env("SILVER_FILTERS_RANGE", (16, 128), int),
-    "kernel_size": parse_range_env("SILVER_KERNEL_SIZE_RANGE", (2, 5), int),
-    "lstm_units": parse_range_env("SILVER_LSTM_UNITS_RANGE", (32, 256), int),
-    "dense_units": parse_range_env("SILVER_DENSE_UNITS_RANGE", (16, 64), int),
+    "lookback": parse_range_env("SILVER_LOOKBACK_RANGE", (20, 100), int),
+    "filters": parse_range_env("SILVER_FILTERS_RANGE", (32, 256), int),
+    "kernel_size": parse_range_env("SILVER_KERNEL_SIZE_RANGE", (2, 7), int),
+    "lstm_units": parse_range_env("SILVER_LSTM_UNITS_RANGE", (64, 512), int),
+    "dense_units": parse_range_env("SILVER_DENSE_UNITS_RANGE", (32, 128), int),
     "dropout_rate": parse_range_env("SILVER_DROPOUT_RANGE", (0.1, 0.5), float),
-    "learning_rate": parse_range_env("SILVER_LEARNING_RATE_RANGE", (1.0e-5, 1.0e-2), float),
+    "learning_rate": parse_range_env("SILVER_LEARNING_RATE_RANGE", (1.0e-5, 5.0e-3), float),
     "l2_reg": parse_range_env("SILVER_L2_REG_RANGE", (1.0e-6, 1.0e-3), float),
-    "batch_size_exp": parse_range_env("SILVER_BATCH_SIZE_EXP_RANGE", (4, 9), int),
+    "batch_size_exp": parse_range_env("SILVER_BATCH_SIZE_EXP_RANGE", (5, 9), int),
 }
 
 
@@ -125,6 +126,14 @@ ABS_TARGET_COL = "P_t_plus_1_abs"
 df[ABS_P_T] = df[TARGET_COL]
 returns_df = df[numeric_cols].pct_change().replace([np.inf, -np.inf], np.nan).dropna()
 returns_df[ABS_P_T] = df[ABS_P_T].loc[returns_df.index]
+
+# FEATURE ENGINEERING: Add explicit lags to the return series
+for col in numeric_cols:
+    returns_df[f"{col}_lag1"] = returns_df[col].shift(1)
+    returns_df[f"{col}_lag2"] = returns_df[col].shift(2)
+
+returns_df = returns_df.dropna()
+
 returns_df[MODEL_TARGET_COL] = returns_df[TARGET_COL].shift(-HORIZON)
 returns_df[ABS_TARGET_COL] = returns_df[ABS_P_T].shift(-HORIZON)
 df_model = returns_df.dropna().copy()
@@ -136,7 +145,7 @@ def create_sequences(X_df, y_df, lookback, abs_y_df=None):
     abs_values = abs_y_df.values.reshape(-1) if abs_y_df is not None else None
     X_seq, y_seq, abs_seq = [], [], []
     for i in range(lookback, len(X_df)):
-        X_seq.append(X_values[i - lookback : i, :])
+        X_seq.append(X_values[i - lookback + 1 : i + 1, :])
         y_seq.append(y_values[i])
         if abs_values is not None:
             abs_seq.append(abs_values[i])
@@ -206,36 +215,96 @@ class CNNBiLSTM(nn.Module):
         x = self.fc_dropout(x)
         return self.out(x)
 
+class BasisPointScaler:
+    def __init__(self, scale=10000.0):
+        self.scale = scale
+    def fit_transform(self, x):
+        return x * self.scale
+    def transform(self, x):
+        return x * self.scale
+    def inverse_transform(self, x):
+        return x / self.scale
+
+def get_scalers():
+    return StandardScaler(), BasisPointScaler(scale=1000.0)
+
+class ProactiveHuberLoss(nn.Module):
+    """
+    Anti-laziness loss for BasisPointScaler-scaled targets (scale=1000).
+
+    Silver daily returns are roughly ±0.4-1.5% → ±4-15 BPS in scaled space.
+    Dead-zone raised to 3.0 BPS so the model must predict a real move.
+
+    Components
+    ----------
+    1. Volatility-weighted Huber  — big-move errors cost more.
+    2. Hinge directional loss     — penalises wrong-sign predictions with margin 2.
+    3. Dead-zone penalty          — penalises |pred| < dead_zone_threshold (3.0 BPS).
+    4. Return-spread penalty      — penalises var(pred) << var(target).
+    """
+    def __init__(self, hinge_weight=8.0, dead_zone_weight=20.0,
+                 spread_weight=5.0, vol_weight_power=1.5):
+        super().__init__()
+        self.huber = nn.HuberLoss(reduction='none')
+        self.hinge_margin = 2.0
+        self.hinge_weight = hinge_weight
+        self.dead_zone_weight = dead_zone_weight
+        self.dead_zone_threshold = 3.0
+        self.spread_weight = spread_weight
+        self.vol_weight_power = vol_weight_power
+
+    def forward(self, pred, target):
+        weights = 1.0 + torch.pow(torch.abs(target), self.vol_weight_power)
+        loss_huber = torch.mean(self.huber(pred, target) * weights)
+        sign_target = torch.sign(target)
+        hinge_loss = torch.mean(torch.relu(self.hinge_margin - pred * sign_target))
+        dead_zone_penalty = torch.mean(torch.relu(self.dead_zone_threshold - torch.abs(pred)))
+        pred_std   = torch.std(pred,   unbiased=False) + 1e-8
+        target_std = torch.std(target, unbiased=False) + 1e-8
+        spread_penalty = torch.relu(target_std / pred_std - 1.0)
+        return (
+            loss_huber
+            + self.hinge_weight    * hinge_loss
+            + self.dead_zone_weight * dead_zone_penalty
+            + self.spread_weight   * spread_penalty
+        )
+
+DirectionalHuberLoss = ProactiveHuberLoss
 
 def train_model(model, X_train, y_train, X_val, y_val, params, max_epochs, patience, min_delta):
+    """
+    Two-phase training: Phase 1 uses plain HuberLoss (no early stopping) as warmup
+    so the model reaches a stable region before Phase 2 applies the full anti-laziness
+    ProactiveHuberLoss with early stopping patience.
+    """
     train_data = TensorDataset(
-        torch.tensor(X_train, dtype=torch.float32),
-        torch.tensor(y_train, dtype=torch.float32).unsqueeze(1),
+        torch.tensor(X_train, dtype=torch.float32).to(device),
+        torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(device),
     )
     val_data = TensorDataset(
-        torch.tensor(X_val, dtype=torch.float32),
-        torch.tensor(y_val, dtype=torch.float32).unsqueeze(1),
+        torch.tensor(X_val, dtype=torch.float32).to(device),
+        torch.tensor(y_val, dtype=torch.float32).unsqueeze(1).to(device),
     )
     train_loader = DataLoader(train_data, batch_size=params["batch_size"], shuffle=False)
     val_loader = DataLoader(val_data, batch_size=params["batch_size"], shuffle=False)
 
     model.to(device)
-    criterion = nn.HuberLoss()
+    warmup_criterion = nn.HuberLoss()
+    main_criterion   = ProactiveHuberLoss(hinge_weight=8.0, dead_zone_weight=20.0, spread_weight=5.0)
     optimizer = optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=params["l2_reg"])
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=3, min_lr=1e-6)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5, min_lr=1e-7)
 
-    best_val_loss = float("inf")
-    best_state = None
-    patience_counter = 0
+    WARMUP_EPOCHS = min(15, max(5, max_epochs // 6))
+
     history = {"loss": [], "val_loss": []}
 
-    for _ in range(max_epochs):
+    # ── Phase 1: Warmup with plain HuberLoss ──────────────────────────────────
+    for _ in range(WARMUP_EPOCHS):
         model.train()
         train_loss = 0.0
         for bx, by in train_loader:
-            bx, by = bx.to(device), by.to(device)
             optimizer.zero_grad()
-            loss = criterion(model(bx), by)
+            loss = warmup_criterion(model(bx), by)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
@@ -246,8 +315,34 @@ def train_model(model, X_train, y_train, X_val, y_val, params, max_epochs, patie
         val_loss = 0.0
         with torch.no_grad():
             for bx, by in val_loader:
-                bx, by = bx.to(device), by.to(device)
-                val_loss += criterion(model(bx), by).item() * bx.size(0)
+                val_loss += warmup_criterion(model(bx), by).item() * bx.size(0)
+        val_loss /= len(val_loader.dataset)
+        history["loss"].append(train_loss)
+        history["val_loss"].append(val_loss)
+
+    # Save warmup endpoint as initial best for phase 2
+    best_state = {k: v.cpu() for k, v in model.state_dict().items()}
+    best_val_loss = float("inf")
+    patience_counter = 0
+
+    # ── Phase 2: Full ProactiveHuberLoss + early stopping ─────────────────────
+    for _ in range(WARMUP_EPOCHS, max_epochs):
+        model.train()
+        train_loss = 0.0
+        for bx, by in train_loader:
+            optimizer.zero_grad()
+            loss = main_criterion(model(bx), by)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+            train_loss += loss.item() * bx.size(0)
+        train_loss /= len(train_loader.dataset)
+
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for bx, by in val_loader:
+                val_loss += main_criterion(model(bx), by).item() * bx.size(0)
         val_loss /= len(val_loader.dataset)
 
         history["loss"].append(train_loss)
@@ -266,6 +361,7 @@ def train_model(model, X_train, y_train, X_val, y_val, params, max_epochs, patie
     if best_state is not None:
         model.load_state_dict(best_state)
     return history
+
 
 
 def save_forecasting_artifacts(
@@ -427,12 +523,11 @@ def optuna_objective(trial):
         X_fold_val_raw = fold_val_raw[feature_cols].copy()
         y_fold_val_raw = fold_val_raw[[MODEL_TARGET_COL]].copy()
 
-        scaler_X = MinMaxScaler()
-        scaler_y = MinMaxScaler()
+        scaler_X, scaler_y = get_scalers()
         X_fold_train_scaled = pd.DataFrame(scaler_X.fit_transform(X_fold_train_raw), columns=feature_cols)
         X_fold_val_scaled = pd.DataFrame(scaler_X.transform(X_fold_val_raw), columns=feature_cols)
-        y_fold_train_scaled = pd.DataFrame(scaler_y.fit_transform(y_fold_train_raw), columns=[MODEL_TARGET_COL])
-        y_fold_val_scaled = pd.DataFrame(scaler_y.transform(y_fold_val_raw), columns=[MODEL_TARGET_COL])
+        y_fold_train_scaled = pd.DataFrame(scaler_y.fit_transform(y_fold_train_raw.values), columns=[MODEL_TARGET_COL])
+        y_fold_val_scaled = pd.DataFrame(scaler_y.transform(y_fold_val_raw.values), columns=[MODEL_TARGET_COL])
 
         X_train_seq, y_train_seq = create_sequences(X_fold_train_scaled, y_fold_train_scaled, params["lookback"])
         X_val_seq, y_val_seq = create_sequences_with_context(
@@ -460,10 +555,14 @@ def optuna_objective(trial):
         y_val_true_scaled = y_val_seq.reshape(-1, 1)
         y_val_pred = scaler_y.inverse_transform(y_val_pred_scaled).reshape(-1)
         y_val_true = scaler_y.inverse_transform(y_val_true_scaled).reshape(-1)
+        dir_acc = np.mean(np.sign(y_val_pred) == np.sign(y_val_true))
         fold_rmse = np.sqrt(mean_squared_error(y_val_true, y_val_pred))
-        fold_rmses.append(fold_rmse)
+        
+        # Composite score
+        fold_score = (1.0 - dir_acc) * 100.0 + fold_rmse
+        fold_rmses.append(fold_score)
 
-        trial.report(float(fold_rmse), step=fold_idx)
+        trial.report(float(fold_score), step=fold_idx)
         if trial.should_prune():
             raise optuna.TrialPruned()
 
@@ -520,12 +619,11 @@ y_fit_final_raw = df_fit_final_raw[[MODEL_TARGET_COL]].copy()
 X_val_final_raw = df_val_final_raw[feature_cols].copy()
 y_val_final_raw = df_val_final_raw[[MODEL_TARGET_COL]].copy()
 
-scaler_X_epoch = MinMaxScaler()
-scaler_y_epoch = MinMaxScaler()
+scaler_X_epoch, scaler_y_epoch = get_scalers()
 X_fit_final_scaled = pd.DataFrame(scaler_X_epoch.fit_transform(X_fit_final_raw), columns=feature_cols)
-y_fit_final_scaled = pd.DataFrame(scaler_y_epoch.fit_transform(y_fit_final_raw), columns=[MODEL_TARGET_COL])
+y_fit_final_scaled = pd.DataFrame(scaler_y_epoch.fit_transform(y_fit_final_raw.values), columns=[MODEL_TARGET_COL])
 X_val_final_scaled = pd.DataFrame(scaler_X_epoch.transform(X_val_final_raw), columns=feature_cols)
-y_val_final_scaled = pd.DataFrame(scaler_y_epoch.transform(y_val_final_raw), columns=[MODEL_TARGET_COL])
+y_val_final_scaled = pd.DataFrame(scaler_y_epoch.transform(y_val_final_raw.values), columns=[MODEL_TARGET_COL])
 
 LOOKBACK = best_params["lookback"]
 X_fit_final, y_fit_final = create_sequences(X_fit_final_scaled, y_fit_final_scaled, LOOKBACK)
@@ -533,10 +631,9 @@ X_val_final, y_val_final = create_sequences_with_context(
     X_fit_final_scaled, y_fit_final_scaled, X_val_final_scaled, y_val_final_scaled, LOOKBACK
 )
 
-scaler_X_final = MinMaxScaler()
-scaler_y_final = MinMaxScaler()
+scaler_X_final, scaler_y_final = get_scalers()
 X_train_outer_scaled = pd.DataFrame(scaler_X_final.fit_transform(X_train_outer_raw), columns=feature_cols)
-y_train_outer_scaled = pd.DataFrame(scaler_y_final.fit_transform(y_train_outer_raw), columns=[MODEL_TARGET_COL])
+y_train_outer_scaled = pd.DataFrame(scaler_y_final.fit_transform(y_train_outer_raw.values), columns=[MODEL_TARGET_COL])
 X_train_outer_seq, y_train_outer_seq = create_sequences(X_train_outer_scaled, y_train_outer_scaled, LOOKBACK)
 
 has_test_partition = len(df_test) > 0
@@ -600,19 +697,22 @@ for seed in FINAL_SEEDS:
     set_global_seed(seed)
     refit_model = CNNBiLSTM((X_train_outer_seq.shape[1], X_train_outer_seq.shape[2]), best_params).to(device)
     d_train = TensorDataset(
-        torch.tensor(X_train_outer_seq, dtype=torch.float32),
-        torch.tensor(y_train_outer_seq, dtype=torch.float32).unsqueeze(1),
+        torch.tensor(X_train_outer_seq, dtype=torch.float32).to(device),
+        torch.tensor(y_train_outer_seq, dtype=torch.float32).unsqueeze(1).to(device),
     )
     l_train = DataLoader(d_train, batch_size=best_params["batch_size"], shuffle=False)
-    criterion = nn.HuberLoss()
-    optimizer = optim.Adam(refit_model.parameters(), lr=best_params["learning_rate"], weight_decay=best_params["l2_reg"])
+    warmup_crit = nn.HuberLoss()
+    main_crit   = ProactiveHuberLoss(hinge_weight=8.0, dead_zone_weight=20.0, spread_weight=5.0)
+    optimizer   = optim.Adam(refit_model.parameters(), lr=best_params["learning_rate"], weight_decay=best_params["l2_reg"])
+
+    warmup_ep = min(15, max(5, best_epoch // 6))
 
     refit_model.train()
-    for _ in range(best_epoch):
+    for e in range(best_epoch):
+        crit = warmup_crit if e < warmup_ep else main_crit
         for bx, by in l_train:
-            bx, by = bx.to(device), by.to(device)
             optimizer.zero_grad()
-            loss = criterion(refit_model(bx), by)
+            loss = crit(refit_model(bx), by)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(refit_model.parameters(), 1.0)
             optimizer.step()

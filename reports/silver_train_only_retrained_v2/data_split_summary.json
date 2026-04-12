@@ -4,6 +4,6 @@
     "horizon": 1,
     "split_mode": "ratio",
     "outer_train_ratio": 0.88,
-    "model_train_rows": 2455,
+    "model_train_rows": 2453,
     "model_test_rows": 335
 }

@@ -88,20 +88,20 @@ ASSET_CONFIG = {
     "gold": {
         "train_csv": "df_gold_dataset_gepu_extended_train.csv",
         "test_csv": "df_gold_dataset_gepu_extended_test.csv",
-        "best_params": "reports/gold_train_only_retrained/gold_best_params_optimized.json",
-        "model_dir": "models/gold_train_only_retrained/seed_99",
-        "model_pth": "cnn_bilstm_seed99.pth",
+        "best_params": "reports/gold_train_only_retrained_v2/gold_best_params_optimized.json",
+        "model_dir": "models/gold_train_only_retrained_v2/seed_42",
+        "model_pth": "cnn_bilstm_seed42.pth",
         "target_col": "Gold_Futures",
-        "dataset_label": "GEPU Extended Train-Only Retrained Model",
+        "dataset_label": "GEPU Extended Train-Only Retrained Model V2",
     },
     "silver": {
         "train_csv": "silver_RRL_interpolate_extended_train.csv",
         "test_csv": "silver_RRL_interpolate_extended_test.csv",
-        "best_params": "reports/silver_RRL_interpolate/silver_yahoo_best_params.json",
-        "model_dir": "models/silver_RRL_interpolate/seed_42",
+        "best_params": "reports/silver_train_only_retrained_v2/silver_best_params_optimized.json",
+        "model_dir": "models/silver_train_only_retrained_v2/seed_42",
         "model_pth": "cnn_bilstm_seed42.pth",
         "target_col": "Silver_Futures",
-        "dataset_label": "Silver Extended Model (Real + Synthetic Horizon)",
+        "dataset_label": "Silver Extended Model V2 (Real + Synthetic Horizon)",
     }
 }
 
@@ -178,35 +178,90 @@ def load_level_frame(csv_path):
     return df
 
 def predict_from_context_frame(asset, context_df):
+    """
+    Build a one-step-ahead price prediction from the given context window.
+
+    Preprocessing must exactly mirror the training pipeline:
+      raw level prices  →  pct_change()  →  lag1 / lag2 features  →  dropna
+      →  select feature_cols in order  →  scale  →  infer  →  inverse_scale
+      →  reconstruct price level
+
+    Bug fixed: the old code tried to select precomputed lag columns
+    (e.g. 'Silver_Futures_lag1') directly from the CSV, which doesn't have them.
+    We now take only BASE numeric columns from the raw frame, compute all
+    transformations from scratch, then select feature_cols from the result.
+    """
     config = ASSET_CONFIG[asset]
     st = state[asset]
+    target_col = config["target_col"]
 
-    cols_to_keep = list(dict.fromkeys(st["feature_cols"] + [config["target_col"]]))
-    numeric_df = context_df[cols_to_keep].copy()
-    abs_last_price = float(numeric_df.iloc[-1][config["target_col"]])
+    # --- Step 1: select only base (non-lag) numeric columns from the raw frame ---
+    # Drop any non-numeric columns except Date so pct_change works cleanly.
+    base_numeric_cols = context_df.select_dtypes(include=[np.number]).columns.tolist()
+    numeric_df = context_df[base_numeric_cols].copy()
+
+    # The last level price is the anchor for price-level reconstruction.
+    # We capture it from the LAST row BEFORE any returns/lag computation.
+    abs_last_price = float(numeric_df.iloc[-1][target_col])
     last_date = context_df.iloc[-1]["Date"].strftime("%Y-%m-%d")
 
-    returns_df = numeric_df.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
+    # --- Step 2: compute returns exactly as in training ---
+    returns_df = numeric_df.pct_change().replace([np.inf, -np.inf], np.nan)
+
+    # --- Step 3: add explicit lag features matching training ---
+    for col in base_numeric_cols:
+        returns_df[f"{col}_lag1"] = returns_df[col].shift(1)
+        returns_df[f"{col}_lag2"] = returns_df[col].shift(2)
+
+    returns_df = returns_df.dropna()
+
     lookback = st["lookback"]
     if len(returns_df) < lookback:
         return {"error": "Not enough data"}
 
-    recent_returns = returns_df[st["feature_cols"]].iloc[-lookback:].copy()
+    # --- Step 4: validate that all expected feature cols are present ---
+    feature_cols = st["feature_cols"]
+    missing = [c for c in feature_cols if c not in returns_df.columns]
+    if missing:
+        return {"error": f"Feature mismatch — missing: {missing}"}
+
+    # --- Step 5: scale and infer ---
+    recent_returns = returns_df[feature_cols].iloc[-lookback:].copy()
     recent_scaled = st["x_scaler"].transform(recent_returns)
     recent_tensor = torch.tensor(recent_scaled, dtype=torch.float32).unsqueeze(0).to(device)
 
+    st["model"].eval()
     with torch.no_grad():
         pred_scaled = st["model"](recent_tensor).cpu().numpy().reshape(-1, 1)
 
     pred_return = st["y_scaler"].inverse_transform(pred_scaled).item()
-    pred_abs = abs_last_price * (1 + pred_return)
+    pred_abs = abs_last_price * (1.0 + pred_return)
     return {
         "predicted_price": round(float(pred_abs), 2),
         "last_train_date": last_date,
         "last_train_price": round(abs_last_price, 2),
     }
 
+
 def build_precomputed_forecasts(asset):
+    """
+    Walk forward through the test set, predicting each test day's price from
+    the context window of all data seen so far, then appending that test row
+    to context before moving to the next step.
+
+    Alignment:
+      - The model is called with context ending at train_day_T.
+      - It predicts price_T+1 = P_T * (1 + r_pred).
+      - test_row at position i IS day T+1 — its `target_col` value IS the
+        actual price we are predicting.
+      - So  actual_price = test_row[target_col]  is correctly aligned with
+            predicted_price from predict_from_context_frame.
+
+    Bug fixed (previously): the date label and actual_price were both taken
+    from the same test_row, but since the context ends ONE step before that
+    test_row, the alignment is in fact correct — actual = P_{t+1}, pred = P^_{t+1}.
+    The real bug was that predict_from_context_frame was using wrong feature cols.
+    """
     config = ASSET_CONFIG[asset]
     train_df = load_level_frame(config["train_csv"])
     test_df = load_level_frame(config["test_csv"])
@@ -215,11 +270,14 @@ def build_precomputed_forecasts(asset):
 
     forecast_rows = []
     context_df = train_df.copy()
+
     for _, test_row in test_df.iterrows():
         pred_info = predict_from_context_frame(asset, context_df)
         if pred_info.get("error"):
             raise ValueError(f"Unable to precompute forecasts for {asset}: {pred_info['error']}")
 
+        # actual_price  = P_{t+1}  (today's price, which is what we predicted)
+        # predicted_price = P^_{t+1} (model's prediction of today from yesterday's context)
         forecast_rows.append(
             {
                 "date": test_row["Date"].strftime("%Y-%m-%d"),
@@ -230,7 +288,11 @@ def build_precomputed_forecasts(asset):
                 "context_end_price": pred_info["last_train_price"],
             }
         )
-        context_df = pd.concat([context_df, test_row.to_frame().T], ignore_index=True)
+
+        # Append current test_row to context; re-parse Date so strftime() keeps working
+        new_row = test_row.to_frame().T.reset_index(drop=True)
+        context_df = pd.concat([context_df, new_row], ignore_index=True)
+        context_df["Date"] = pd.to_datetime(context_df["Date"], errors="coerce")
 
     return test_df, forecast_rows
 
@@ -408,39 +470,76 @@ def get_status(asset: str):
     forecast_rows = st.get("forecast_rows") or []
     pred_info = predict_next_day(asset)
     
+    # -----------------------------------------------------------------
     # Generate Rolling Metrics Log
+    # actual_price = P_{t+1} (the real next-day price)
+    # predicted_price = P^_{t+1} (model forecast for that same day)
+    # These are correctly aligned in build_precomputed_forecasts.
+    # -----------------------------------------------------------------
     log_arr = []
-    y_true = []
-    y_pred = []
+    y_true_arr = []
+    y_pred_arr = []
+    y_prev_arr = []   # P_t (yesterday's actual price) for laziness check
 
-    for row in forecast_rows[:idx]:
-        y_true.append(float(row["actual_price"]))
-        y_pred.append(float(row["predicted_price"]))
+    for i, row in enumerate(forecast_rows[:idx]):
+        y_true_arr.append(float(row["actual_price"]))
+        y_pred_arr.append(float(row["predicted_price"]))
+        # context_end_price is the last price the model saw (= P_t)
+        y_prev_arr.append(float(row.get("context_end_price") or row["actual_price"]))
         log_arr.append({
             "date": row["date"],
             "actual": round(float(row["actual_price"]), 2),
-            "predicted": round(float(row["predicted_price"]), 2)
+            "predicted": round(float(row["predicted_price"]), 2),
+            "context_end_date": row.get("context_end_date"),
+            "context_end_price": round(float(row.get("context_end_price") or row["actual_price"]), 2),
         })
-            
-    # Calculate Rolling metrics
+
+    # -----------------------------------------------------------------
+    # Rolling metrics
+    # -----------------------------------------------------------------
     rolling_rmse = None
     rolling_r2 = None
-    if len(y_true) > 1:
-        rolling_rmse = round(np.sqrt(mean_squared_error(y_true, y_pred)), 4)
-        rolling_r2 = round(r2_score(y_true, y_pred), 4)
-        
+    rolling_dir_acc = None
+    rolling_lazy = None        # True if model correlates more with P_t than P_{t+1}
+
+    n = len(y_true_arr)
+    if n > 1:
+        y_true_np = np.array(y_true_arr)
+        y_pred_np = np.array(y_pred_arr)
+        y_prev_np = np.array(y_prev_arr)
+
+        rolling_rmse = round(float(np.sqrt(mean_squared_error(y_true_np, y_pred_np))), 4)
+        rolling_r2   = round(float(r2_score(y_true_np, y_pred_np)), 4)
+
+        # Directional accuracy: was the predicted move in the right direction?
+        # direction = sign(P_{t+1}_pred - P_t) vs sign(P_{t+1}_actual - P_t)
+        actual_direction = np.sign(y_true_np - y_prev_np)
+        pred_direction   = np.sign(y_pred_np  - y_prev_np)
+        rolling_dir_acc  = round(float(np.mean(actual_direction == pred_direction)), 4)
+
+        # Laziness: does pred correlate more with P_t than P_{t+1}?
+        if np.std(y_pred_np) > 0 and np.std(y_true_np) > 0 and np.std(y_prev_np) > 0:
+            corr_actual = float(np.corrcoef(y_pred_np, y_true_np)[0, 1])
+            corr_lag1   = float(np.corrcoef(y_pred_np, y_prev_np)[0, 1])
+            rolling_lazy = bool(corr_lag1 > corr_actual)
+        else:
+            corr_actual = None
+            corr_lag1   = None
+
     yesterday_actual = None
-    yesterday_pred = None
-    yesterday_date = None
-    
-    if idx > 0:
-        yesterday_actual = y_true[-1] if len(y_true) > 0 else None
-        yesterday_pred = y_pred[-1] if len(y_pred) > 0 else None
-        yesterday_date = log_arr[-1]["date"] if len(log_arr) > 0 else None
-        
-    # Send ordered history log (newest at the top visually preferably, but let JS handle it)
+    yesterday_pred   = None
+    yesterday_date   = None
+
+    if idx > 0 and log_arr:
+        # log_arr is not reversed yet here, so last entry = most recent
+        last_entry = log_arr[-1]
+        yesterday_date   = last_entry["date"]
+        yesterday_actual = last_entry["actual"]
+        yesterday_pred   = last_entry["predicted"]
+
+    # Newest entries at the top for the dashboard table
     log_arr.reverse()
-        
+
     return {
         "asset": asset,
         "dataset_label": config.get("dataset_label"),
@@ -465,6 +564,8 @@ def get_status(asset: str):
         "last_train_price": pred_info.get("last_train_price"),
         "rolling_rmse": rolling_rmse,
         "rolling_r2": rolling_r2,
+        "rolling_dir_acc": rolling_dir_acc,
+        "rolling_lazy": rolling_lazy,
         "history_log": log_arr
     }
 

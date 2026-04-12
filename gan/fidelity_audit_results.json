@@ -1,0 +1,12 @@
+[
+  {
+    "asset": "gold",
+    "accuracy": 0.8816621499548328,
+    "plot": "gan/gold_fidelity_audit.png"
+  },
+  {
+    "asset": "silver",
+    "accuracy": 0.7401185770750988,
+    "plot": "gan/silver_fidelity_audit.png"
+  }
+]

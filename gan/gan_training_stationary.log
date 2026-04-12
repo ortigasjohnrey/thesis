@@ -5717,3 +5717,5 @@
 2026-04-10 01:13:32,443 - INFO - [NASDAQ_100] Hist_Std: 0.014290, Gen_Std: 0.014292, Err: 0.02%, Hist_Mean: 0.000594, Gen_Mean: 0.000594
 2026-04-10 01:13:32,444 - INFO - [USD_index] Hist_Std: 0.433558, Gen_Std: 0.433640, Err: 0.02%, Hist_Mean: 0.000578, Gen_Mean: 0.000578
 2026-04-10 01:13:32,714 - INFO - Finalized and saved extended data to C:\Users\jebzw\OneDrive\Documents\Github\Gold-Silver-Forcasting\silver_RRL_interpolate_extended.csv
+2026-04-13 02:11:01,137 - INFO - Initialized GAN Training on cuda
+2026-04-13 02:11:01,238 - INFO - CUDA context warmup completed.

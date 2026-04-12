@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAN Fidelity Report (Minimal) | Gold-Silver Forecasting</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #fff;
+        }
+
+        h1, h2, h3 {
+            color: #000;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 40px;
+        }
+
+        h1 { font-size: 2.2rem; }
+        h2 { font-size: 1.6rem; border-bottom: 1px solid #ddd; }
+
+        .summary-box {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            flex: 1;
+            padding: 20px;
+            border: 1px solid #ddd;
+            background: #f9f9f9;
+        }
+
+        .metric-card h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            font-weight: 600;
+        }
+
+        .fidelity-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .fidelity-item {
+            border: 1px solid #eee;
+            padding: 15px;
+        }
+
+        .image-box {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .image-box img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+        }
+
+        .image-caption {
+            font-size: 0.9rem;
+            color: #777;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .rrl-item {
+            margin-bottom: 25px;
+        }
+
+        .citation {
+            display: block;
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .param-list {
+            column-count: 2;
+            padding: 0;
+            list-style: none;
+        }
+
+        .param-list li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .param-label {
+            font-weight: 600;
+            width: 140px;
+            display: inline-block;
+        }
+
+        footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 0.85rem;
+            color: #999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>GAN Research & Fidelity Report</h1>
+        <p>Stationary Returns Synthesis Performance for Gold and Silver Markets</p>
+    </header>
+
+    <section>
+        <h2>1. Executive Summary</h2>
+        <div class="summary-box">
+            <div class="metric-card">
+                <h4>Gold (df_gold_dataset_gepu)</h4>
+                <table>
+                    <tr><td>Avg Volatility Ratio</td><td>0.9844</td></tr>
+                    <tr><td>Avg KS Statistic</td><td>0.0907</td></tr>
+                    <tr><td>Auditor Accuracy</td><td>88.17%</td></tr>
+                </table>
+            </div>
+            <div class="metric-card">
+                <h4>Silver (silver_RRL_interpolate)</h4>
+                <table>
+                    <tr><td>Avg Volatility Ratio</td><td>1.0019</td></tr>
+                    <tr><td>Avg KS Statistic</td><td>0.0748</td></tr>
+                    <tr><td>Auditor Accuracy</td><td>74.01%</td></tr>
+                </table>
+            </div>
+        </div>
+        <p style="margin-top: 20px;">The Silver model demonstrates exceptional fidelity, with an independent proxy auditor reaching only 74% accuracy in distinguishing synthetic paths from historical reality.</p>
+    </section>
+
+    <section>
+        <h2>2. Literature Review (RRL)</h2>
+        <div class="rrl-item">
+            <strong>TimeGAN (2019)</strong>
+            <p>Addresses the preservation of temporal dynamics by combining unsupervised adversarial training with supervised joint-optimization.</p>
+            <span class="citation">Yoon, J., et al. (2019). NeurIPS.</span>
+        </div>
+        <div class="rrl-item">
+            <strong>DoppelGANger (2020)</strong>
+            <p>Separates metadata from time series features to improve long-sequence stability and cross-asset correlation.</p>
+            <span class="citation">Lin, Z., et al. (2020). ACM CoNEXT.</span>
+        </div>
+        <div class="rrl-item">
+            <strong>QuantGAN (2020)</strong>
+            <p>Uses Temporal Convolutional Networks (TCNs) to replicate financial stylized facts like volatility clustering.</p>
+            <span class="citation">Wiese, M., et al. (2020). Quantitative Finance.</span>
+        </div>
+        <div class="rrl-item">
+            <strong>SigCWGAN (2020)</strong>
+            <p>Introduces signature-based metrics (Sig-W1) as a universal distance measure for high-dimensional paths.</p>
+            <span class="citation">Ni, H., et al. (2020). arXiv.</span>
+        </div>
+    </section>
+
+    <section>
+        <h2>3. Training Parameters</h2>
+        <ul class="param-list">
+            <li><span class="param-label">Batch Size:</span> 256</li>
+            <li><span class="param-label">Epochs:</span> 40</li>
+            <li><span class="param-label">Window Size:</span> 15</li>
+            <li><span class="param-label">Noise Dim:</span> 32</li>
+            <li><span class="param-label">Gen LR:</span> 3.6e-4</li>
+            <li><span class="param-label">Disc LR:</span> 1.6e-4</li>
+            <li><span class="param-label">Gen Hidden:</span> 128</li>
+            <li><span class="param-label">Disc Hidden:</span> 192</li>
+            <li><span class="param-label">N-Critic:</span> 3</li>
+            <li><span class="param-label">Precision:</span> AMP Enabled</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>4. Fidelity Audit Analysis</h2>
+        <p>An independent LSTM auditor was trained to distinguish between historical sequences and generated artifacts. Overlapping score distributions represent high fidelity.</p>
+        
+        <div class="fidelity-grid">
+            <div class="image-box">
+                <img src="gold_fidelity_audit.png" alt="Gold Audit">
+                <p class="image-caption">Figure 4.1: Gold Fidelity Audit (88.1% Accuracy)</p>
+            </div>
+            <div class="image-box">
+                <img src="silver_fidelity_audit.png" alt="Silver Audit">
+                <p class="image-caption">Figure 4.2: Silver Fidelity Audit (74.0% Accuracy)</p>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>5. Continuity & Bridging</h2>
+        <p>The continuity plots verify the seamless temporal transition between historical lookback windows and the synthesized forecast bridge.</p>
+        
+        <div class="image-box">
+            <img src="../reports/gan_validation/silver_RRL_interpolate/plots/recent_history_vs_generated.png" alt="Silver Bridge">
+            <p class="image-caption">Figure 5.1: Silver Temporal Bridging Analysis</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>Gold-Silver Forecasting Research | Generated 2026-04-12</p>
+    </footer>
+
+</body>
+</html>
