@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:/Users/TotoBakod/Documents/Github/Gold-Silver-Forcasting/\"*.csv)",
+      "Bash(python:*)"
+    ]
+  }
+}

@@ -1,9 +1,0 @@
-{
-  "requested_train_end_date": "2026-04-09",
-  "raw_train_first_date": "2015-03-31",
-  "raw_train_last_date": "2026-04-09",
-  "raw_train_rows": 2878,
-  "raw_test_first_date": "2026-04-10",
-  "raw_test_last_date": "2026-12-31",
-  "raw_test_rows": 190
-}

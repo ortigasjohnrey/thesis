@@ -462,6 +462,19 @@
                         <div class="metric-val" id="metric-r2">--</div>
                     </div>
                 </div>
+                <div class="metric-block" style="margin-top: 0.75rem;">
+                    <div class="metric-item">
+                        <div class="price-label">Directional Acc.</div>
+                        <div class="metric-val" id="metric-dir-acc">--</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="price-label">Lazy Model?</div>
+                        <div class="metric-val" id="metric-lazy">--</div>
+                    </div>
+                </div>
+                <div id="lazy-warning" style="display:none; margin-top:0.75rem; padding:0.6rem 1rem; border-radius:8px; background:rgba(255,82,82,0.12); border:1px solid rgba(255,82,82,0.3); color:#ff5252; font-size:0.85rem;">
+                    ⚠ Model is lazy: predictions correlate more with P<sub>t</sub> than P<sub>t+1</sub>. Retrain with stronger anti-laziness penalties.
+                </div>
             </div>
 
             <!-- Today Card -->
@@ -505,13 +518,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Date</th>
+                            <th>Forecast Date</th>
                             <th class="text-right">Actual Price</th>
                             <th class="text-right">Predicted Price</th>
+                            <th class="text-right">Context End</th>
                         </tr>
                     </thead>
                     <tbody id="history-body">
-                        <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Awaiting Simulation Data...</td></tr>
+                        <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Awaiting Simulation Data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -692,6 +706,34 @@
                 
                 document.getElementById('metric-rmse').innerText = data.rolling_rmse !== null ? `$${data.rolling_rmse}` : '--';
                 document.getElementById('metric-r2').innerText = data.rolling_r2 !== null ? data.rolling_r2 : '--';
+
+                const dirAcc = data.rolling_dir_acc;
+                const dirAccEl = document.getElementById('metric-dir-acc');
+                if (dirAcc !== null && dirAcc !== undefined) {
+                    const pct = (dirAcc * 100).toFixed(1);
+                    dirAccEl.innerText = `${pct}%`;
+                    dirAccEl.style.color = dirAcc >= 0.5 ? 'var(--success)' : 'var(--danger)';
+                } else {
+                    dirAccEl.innerText = '--';
+                    dirAccEl.style.color = '';
+                }
+
+                const isLazy = data.rolling_lazy;
+                const lazyEl = document.getElementById('metric-lazy');
+                const lazyWarning = document.getElementById('lazy-warning');
+                if (isLazy === true) {
+                    lazyEl.innerText = 'YES';
+                    lazyEl.style.color = 'var(--danger)';
+                    lazyWarning.style.display = 'block';
+                } else if (isLazy === false) {
+                    lazyEl.innerText = 'NO';
+                    lazyEl.style.color = 'var(--success)';
+                    lazyWarning.style.display = 'none';
+                } else {
+                    lazyEl.innerText = '--';
+                    lazyEl.style.color = '';
+                    lazyWarning.style.display = 'none';
+                }
                 
                 const split = data.data_split || {};
                 let modelLabel = data.dataset_label || '--';
@@ -714,16 +756,20 @@
                 tbody.innerHTML = '';
                 if(data.history_log && data.history_log.length > 0) {
                     data.history_log.forEach(row => {
+                        const diff = row.actual - row.predicted;
+                        const diffColor = diff > 0 ? 'var(--success)' : 'var(--danger)';
+                        const diffStr = diff > 0 ? `+$${diff.toFixed(2)}` : `-$${Math.abs(diff).toFixed(2)}`;
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
                             <td>${row.date}</td>
                             <td class="cell-actual text-right">$${row.actual.toFixed(2)}</td>
-                            <td class="cell-predicted text-right">$${row.predicted.toFixed(2)}</td>
+                            <td class="cell-predicted text-right" style="color: ${diffColor};">$${row.predicted.toFixed(2)} <span style="font-size:0.8em;">(${diffStr})</span></td>
+                            <td class="text-right" style="color: var(--text-muted); font-size: 0.85em;">${row.context_end_date || '--'}</td>
                         `;
                         tbody.appendChild(tr);
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Awaiting Simulation Data...</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Awaiting Simulation Data...</td></tr>';
                 }
 
                 updateChart(

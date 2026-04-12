@@ -1,5 +1,0 @@
-INFO:     127.0.0.1:9734 - "GET /api/status/gold HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9746 - "POST /api/next_day/gold HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9746 - "GET /api/status/gold HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9746 - "POST /api/current_date/gold?date=2026-04-10 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6267 - "GET /api/status/gold HTTP/1.1" 200 OK

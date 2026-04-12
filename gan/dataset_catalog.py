@@ -10,7 +10,7 @@ from pandas.tseries.offsets import BDay
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 REPORTS_ROOT = PROJECT_ROOT / "reports" / "gan_validation"
-TARGET_END_DATE = pd.Timestamp(os.getenv("GAN_TARGET_END_DATE", "2026-05-08"))
+TARGET_END_DATE = pd.Timestamp(os.getenv("GAN_TARGET_END_DATE", "2027-12-31"))
 
 DATASET_CONFIGS = [
     {
@@ -31,6 +31,9 @@ DATASET_CONFIGS = [
             "Crude_Oil_Futures",
             "Gold_Futures",
             "UST10Y_Treasury_Yield",
+            "gepu",
+            "DFF",
+            "gpr_daily",
         ],
         "seed_env": "GAN_GOLD_SEEDS",
         "default_seeds": [0, 1, 2, 3],

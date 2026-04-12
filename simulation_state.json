@@ -1,12 +1,12 @@
 {
   "gold": {
-    "test_idx": 44,
-    "current_date": "2026-06-11",
+    "test_idx": 163,
+    "current_date": "2026-11-25",
     "history": {}
   },
   "silver": {
-    "test_idx": 0,
-    "current_date": "2026-04-10",
+    "test_idx": 1,
+    "current_date": "2026-04-13",
     "history": {}
   }
 }

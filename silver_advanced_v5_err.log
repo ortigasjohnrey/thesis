@@ -1,0 +1,10 @@
+2026-04-13 06:32:23,509 [INFO] Starting Full Silver Training Pipeline...
+2026-04-13 06:32:23,510 [INFO] Loading datasets from silver_RRL_interpolate_extended_train.csv and silver_RRL_interpolate_extended_test.csv
+2026-04-13 06:32:23,520 [INFO] Using strictly features: ['Silver_Futures', 'Gold_Futures', 'US30', 'SnP500', 'NASDAQ_100', 'USD_index']
+2026-04-13 06:32:23,532 [INFO] Running Optuna Optimization...
+[I 2026-04-13 06:32:23,533] A new study created in memory with name: no-name-fb2444ba-b139-4ecc-b9b9-4e0501cfd8c0
+[I 2026-04-13 06:32:44,420] Trial 0 finished with value: 2.3586640081978065 and parameters: {'lookback': 14, 'filters': 124, 'lstm_units': 205, 'dropout': 0.3394633936788146, 'lr': 0.00018410729205738696, 'kernel_size': 3, 'batch_size': 64}. Best is trial 0 with value: 2.3586640081978065.
+[I 2026-04-13 06:33:02,563] Trial 1 finished with value: 2.504829108064923 and parameters: {'lookback': 23, 'filters': 33, 'lstm_units': 251, 'dropout': 0.4329770563201687, 'lr': 0.00022948683681130568, 'kernel_size': 3, 'batch_size': 128}. Best is trial 0 with value: 2.3586640081978065.
+[I 2026-04-13 06:33:32,166] Trial 2 finished with value: 2.4559155874533567 and parameters: {'lookback': 16, 'filters': 60, 'lstm_units': 182, 'dropout': 0.15579754426081674, 'lr': 0.0003135775732257748, 'kernel_size': 5, 'batch_size': 64}. Best is trial 0 with value: 2.3586640081978065.
+[I 2026-04-13 06:33:40,813] Trial 3 finished with value: 2.2838991674677285 and parameters: {'lookback': 18, 'filters': 89, 'lstm_units': 72, 'dropout': 0.34301794076057535, 'lr': 0.00019485671251272575, 'kernel_size': 3, 'batch_size': 64}. Best is trial 3 with value: 2.2838991674677285.
+[I 2026-04-13 06:33:57,546] Trial 4 finished with value: 2.3115845537009583 and parameters: {'lookback': 12, 'filters': 41, 'lstm_units': 196, 'dropout': 0.27606099749584057, 'lr': 0.000161190447276092, 'kernel_size': 5, 'batch_size': 64}. Best is trial 3 with value: 2.2838991674677285.

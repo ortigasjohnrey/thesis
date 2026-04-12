@@ -1,9 +1,0 @@
-{
-    "source_path": "silver_RRL_interpolate_extended_train.csv",
-    "target_col": "Silver_Futures",
-    "horizon": 1,
-    "split_mode": "ratio",
-    "outer_train_ratio": 0.88,
-    "model_train_rows": 2453,
-    "model_test_rows": 335
-}

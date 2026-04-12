@@ -1,2 +1,0 @@
-trial_number,params,fold_rmses,mean_rmse
-0,"{'lookback': 29, 'filters': 123, 'kernel_size': 4, 'lstm_units': 166, 'dense_units': 23, 'dropout_rate': 0.16239780813448107, 'learning_rate': 1.493656855461762e-05, 'l2_reg': 0.0003967605077052988, 'batch_size_exp': 7, 'batch_size': 128}","[np.float64(0.03838531051316654), np.float64(0.01455546828020307), np.float64(0.009559852210225043), np.float64(0.009126827300050908), np.float64(0.010344410760878645)]",0.01639437381290484

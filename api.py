@@ -23,63 +23,41 @@ app.add_middleware(
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# --- SCALER DEFINITION (must match training script so pickle can deserialize) ---
+class BasisPointScaler:
+    """Scales returns to basis-point space: x_scaled = x_raw * scale."""
+    def __init__(self, scale=1000.0):
+        self.scale = scale
+    def fit_transform(self, x):
+        return x * self.scale
+    def transform(self, x):
+        return x * self.scale
+    def inverse_transform(self, x):
+        return x / self.scale
+
 # --- MODEL DEFINITION ---
 class CNN_BiLSTM(nn.Module):
-    def __init__(self, input_shape, params):
+    def __init__(self, input_dim, hidden_dim=128, filters=64, kernel_size=3, n_layers=2, dropout=0.3):
         super(CNN_BiLSTM, self).__init__()
-        in_channels = input_shape[1] 
-        dr = params["dropout_rate"]
-        
-        self.conv1 = nn.Conv1d(
-            in_channels=in_channels,
-            out_channels=params["filters"],
-            kernel_size=params["kernel_size"],
-            padding=params["kernel_size"] - 1 
-        )
+        self.conv1 = nn.Conv1d(input_dim, filters, kernel_size=kernel_size, padding=kernel_size//2)
+        self.bn1 = nn.BatchNorm1d(filters)
         self.relu = nn.ReLU()
-        self.bn1 = nn.BatchNorm1d(params["filters"])
-        self.spatial_dropout = nn.Dropout1d(p=dr)
-        
-        self.lstm1 = nn.LSTM(
-            input_size=params["filters"],
-            hidden_size=params["lstm_units"],
-            batch_first=True,
-            bidirectional=True
-        )
-        self.dropout1 = nn.Dropout(dr)
-        
-        lstm2_units = max(16, params["lstm_units"] // 2)
-        self.lstm2 = nn.LSTM(
-            input_size=params["lstm_units"] * 2,
-            hidden_size=lstm2_units,
-            batch_first=True,
-            bidirectional=True
-        )
-        self.dropout2 = nn.Dropout(dr)
-        
-        self.fc1 = nn.Linear(lstm2_units * 2, params["dense_units"])
-        self.fc_dropout = nn.Dropout(dr)
-        self.out = nn.Linear(params["dense_units"], 1)
+        self.dropout = nn.Dropout(dropout)
+        self.lstm = nn.LSTM(filters, hidden_dim, n_layers, batch_first=True, bidirectional=True, dropout=dropout)
+        self.fc = nn.Linear(hidden_dim * 2, 64)
+        self.out = nn.Linear(64, 1)
 
     def forward(self, x):
-        x = x.permute(0, 2, 1)
+        x = x.transpose(1, 2)
         x = self.conv1(x)
-        if self.conv1.padding[0] > 0:
-            x = x[:, :, :-self.conv1.padding[0]]
-        x = self.relu(x)
         x = self.bn1(x)
-        x = self.spatial_dropout(x)
-        x = x.permute(0, 2, 1)
-        x, _ = self.lstm1(x)
-        x = self.dropout1(x)
-        _, (h_n, c_n) = self.lstm2(x)
-        h_f = h_n[0, :, :]
-        h_b = h_n[1, :, :]
-        x = torch.cat((h_f, h_b), dim=1)
-        x = self.dropout2(x)
-        x = self.fc1(x)
         x = self.relu(x)
-        x = self.fc_dropout(x)
+        x = self.dropout(x)
+        x = x.transpose(1, 2)
+        x, _ = self.lstm(x)
+        x = x[:, -1, :]
+        x = self.fc(x)
+        x = self.relu(x)
         x = self.out(x)
         return x
 
@@ -88,28 +66,30 @@ ASSET_CONFIG = {
     "gold": {
         "train_csv": "df_gold_dataset_gepu_extended_train.csv",
         "test_csv": "df_gold_dataset_gepu_extended_test.csv",
-        "best_params": "reports/gold_train_only_retrained_v2/gold_best_params_optimized.json",
-        "model_dir": "models/gold_train_only_retrained_v2/seed_42",
-        "model_pth": "cnn_bilstm_seed42.pth",
+        "best_params": "models/gold_RRL_interpolate/best_params.json",
+        "model_dir": "models/gold_RRL_interpolate",
+        "seeds": [0, 1, 2, 42, 99, 123],
         "target_col": "Gold_Futures",
-        "dataset_label": "GEPU Extended Train-Only Retrained Model V2",
+        "dataset_label": "Gold CNN-BiLSTM Optuna Ensemble (Anti-Laziness)",
+        "features": ['Silver_Futures', 'Crude_Oil_Futures', 'UST10Y_Treasury_Yield', 'gepu', 'DFF', 'gpr_daily', 'Gold_Futures']
     },
     "silver": {
         "train_csv": "silver_RRL_interpolate_extended_train.csv",
         "test_csv": "silver_RRL_interpolate_extended_test.csv",
-        "best_params": "reports/silver_train_only_retrained_v2/silver_best_params_optimized.json",
-        "model_dir": "models/silver_train_only_retrained_v2/seed_42",
-        "model_pth": "cnn_bilstm_seed42.pth",
+        "best_params": "models/silver_RRL_interpolate/best_params.json",
+        "model_dir": "models/silver_RRL_interpolate",
+        "seeds": [0, 1, 2, 42, 99, 123],
         "target_col": "Silver_Futures",
-        "dataset_label": "Silver Extended Model V2 (Real + Synthetic Horizon)",
+        "dataset_label": "Silver CNN-BiLSTM Optuna Ensemble (Anti-Laziness)",
+        "features": ['Silver_Futures', 'Gold_Futures', 'US30', 'SnP500', 'NASDAQ_100', 'USD_index']
     }
 }
 
 STATE_FILE = "simulation_state.json"
 
 state = {
-    "gold": {"test_idx": 0, "model": None, "x_scaler": None, "y_scaler": None, "feature_cols": None, "lookback": None, "params": None, "current_date": None, "history": {}, "data_split": None, "model_seed": None, "test_df": None, "forecast_rows": None},
-    "silver": {"test_idx": 0, "model": None, "x_scaler": None, "y_scaler": None, "feature_cols": None, "lookback": None, "params": None, "current_date": None, "history": {}, "data_split": None, "model_seed": None, "test_df": None, "forecast_rows": None}
+    "gold": {"test_idx": 0, "models": [], "x_scaler": None, "y_scaler": None, "feature_cols": None, "lookback": None, "params": None, "current_date": None, "history": {}, "data_split": None, "model_seeds": None, "test_df": None, "forecast_rows": None},
+    "silver": {"test_idx": 0, "models": [], "x_scaler": None, "y_scaler": None, "feature_cols": None, "lookback": None, "params": None, "current_date": None, "history": {}, "data_split": None, "model_seeds": None, "test_df": None, "forecast_rows": None}
 }
 
 def save_runtime_state():
@@ -180,62 +160,45 @@ def load_level_frame(csv_path):
 def predict_from_context_frame(asset, context_df):
     """
     Build a one-step-ahead price prediction from the given context window.
-
-    Preprocessing must exactly mirror the training pipeline:
-      raw level prices  →  pct_change()  →  lag1 / lag2 features  →  dropna
-      →  select feature_cols in order  →  scale  →  infer  →  inverse_scale
-      →  reconstruct price level
-
-    Bug fixed: the old code tried to select precomputed lag columns
-    (e.g. 'Silver_Futures_lag1') directly from the CSV, which doesn't have them.
-    We now take only BASE numeric columns from the raw frame, compute all
-    transformations from scratch, then select feature_cols from the result.
+    Strictly follows the return-based transformation and feature set from training.
     """
     config = ASSET_CONFIG[asset]
     st = state[asset]
     target_col = config["target_col"]
+    feature_cols = config["features"]
 
-    # --- Step 1: select only base (non-lag) numeric columns from the raw frame ---
-    # Drop any non-numeric columns except Date so pct_change works cleanly.
-    base_numeric_cols = context_df.select_dtypes(include=[np.number]).columns.tolist()
-    numeric_df = context_df[base_numeric_cols].copy()
-
-    # The last level price is the anchor for price-level reconstruction.
-    # We capture it from the LAST row BEFORE any returns/lag computation.
-    abs_last_price = float(numeric_df.iloc[-1][target_col])
+    # --- Step 1: Anchor price ---
+    abs_last_price = float(context_df[target_col].iloc[-1])
     last_date = context_df.iloc[-1]["Date"].strftime("%Y-%m-%d")
 
-    # --- Step 2: compute returns exactly as in training ---
-    returns_df = numeric_df.pct_change().replace([np.inf, -np.inf], np.nan)
-
-    # --- Step 3: add explicit lag features matching training ---
-    for col in base_numeric_cols:
-        returns_df[f"{col}_lag1"] = returns_df[col].shift(1)
-        returns_df[f"{col}_lag2"] = returns_df[col].shift(2)
-
-    returns_df = returns_df.dropna()
+    # --- Step 2: Compute Returns accurately ---
+    # Only keep the columns we need
+    numeric_df = context_df[feature_cols].copy()
+    # Force numeric
+    for c in feature_cols:
+        numeric_df[c] = pd.to_numeric(numeric_df[c], errors="coerce")
+    
+    returns_df = numeric_df.pct_change().replace([np.inf, -np.inf], 0).dropna()
 
     lookback = st["lookback"]
     if len(returns_df) < lookback:
-        return {"error": "Not enough data"}
+        return {"error": f"Not enough data (needs {lookback}, has {len(returns_df)})"}
 
-    # --- Step 4: validate that all expected feature cols are present ---
-    feature_cols = st["feature_cols"]
-    missing = [c for c in feature_cols if c not in returns_df.columns]
-    if missing:
-        return {"error": f"Feature mismatch — missing: {missing}"}
-
-    # --- Step 5: scale and infer ---
+    # --- Step 3: Scale and Infer with Ensemble ---
     recent_returns = returns_df[feature_cols].iloc[-lookback:].copy()
     recent_scaled = st["x_scaler"].transform(recent_returns)
     recent_tensor = torch.tensor(recent_scaled, dtype=torch.float32).unsqueeze(0).to(device)
 
-    st["model"].eval()
-    with torch.no_grad():
-        pred_scaled = st["model"](recent_tensor).cpu().numpy().reshape(-1, 1)
-
-    pred_return = st["y_scaler"].inverse_transform(pred_scaled).item()
+    all_preds = []
+    for model in st["models"]:
+        with torch.no_grad():
+            pred_scaled = model(recent_tensor).cpu().numpy().reshape(-1, 1)
+            all_preds.append(pred_scaled)
+    
+    avg_pred_scaled = np.mean(all_preds, axis=0)
+    pred_return = st["y_scaler"].inverse_transform(avg_pred_scaled).item()
     pred_abs = abs_last_price * (1.0 + pred_return)
+
     return {
         "predicted_price": round(float(pred_abs), 2),
         "last_train_date": last_date,
@@ -271,7 +234,8 @@ def build_precomputed_forecasts(asset):
     forecast_rows = []
     context_df = train_df.copy()
 
-    for _, test_row in test_df.iterrows():
+    for i in range(len(test_df)):
+        test_row = test_df.iloc[i]
         pred_info = predict_from_context_frame(asset, context_df)
         if pred_info.get("error"):
             raise ValueError(f"Unable to precompute forecasts for {asset}: {pred_info['error']}")
@@ -289,9 +253,8 @@ def build_precomputed_forecasts(asset):
             }
         )
 
-        # Append current test_row to context; re-parse Date so strftime() keeps working
-        new_row = test_row.to_frame().T.reset_index(drop=True)
-        context_df = pd.concat([context_df, new_row], ignore_index=True)
+        # Append current test_row to context; use index slicer to preserve dtypes
+        context_df = pd.concat([context_df, test_df.iloc[[i]]], ignore_index=True)
         context_df["Date"] = pd.to_datetime(context_df["Date"], errors="coerce")
 
     return test_df, forecast_rows
@@ -353,36 +316,41 @@ def load_models():
         with open(config["best_params"], "r") as f:
             params = json.load(f)
         state[asset]["params"] = params
-        
-        # Load metadata
-        with open(os.path.join(config["model_dir"], "model_metadata.json"), "r") as f:
-            meta = json.load(f)
-        state[asset]["feature_cols"] = meta["feature_cols"]
-        state[asset]["lookback"] = meta["lookback"]
-        state[asset]["data_split"] = dict(meta.get("data_split") or {})
-        state[asset]["model_seed"] = meta.get("seed")
+        state[asset]["lookback"] = params["lookback"]
         
         # Load Scalers
-        with open(os.path.join(config["model_dir"], "x_scaler.pkl"), "rb") as f:
+        with open(os.path.join(config["model_dir"], "scaler_X.pkl"), "rb") as f:
             state[asset]["x_scaler"] = pickle.load(f)
-        with open(os.path.join(config["model_dir"], "y_scaler.pkl"), "rb") as f:
+        with open(os.path.join(config["model_dir"], "scaler_y.pkl"), "rb") as f:
             state[asset]["y_scaler"] = pickle.load(f)
             
-        # Initialize model
-        model = CNN_BiLSTM(input_shape=(state[asset]["lookback"], len(state[asset]["feature_cols"])), params=params)
-        model.load_state_dict(torch.load(os.path.join(config["model_dir"], config["model_pth"]), map_location=device, weights_only=True))
-        model.to(device)
-        model.eval()
-        state[asset]["model"] = model
+        # Initialize and load all models in the ensemble
+        state[asset]["models"] = []
+        input_dim = len(config["features"])
+        for seed in config["seeds"]:
+            model = CNN_BiLSTM(
+                input_dim=input_dim,
+                hidden_dim=params["lstm_units"],
+                filters=params["filters"],
+                kernel_size=params["kernel_size"],
+                dropout=params["dropout"]
+            )
+            model_name = f"{asset}_model_seed_{seed}.pth"
+            model_path = os.path.join(config["model_dir"], model_name)
+            model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+            model.to(device)
+            model.eval()
+            state[asset]["models"].append(model)
 
         test_df, forecast_rows = build_precomputed_forecasts(asset)
         state[asset]["test_df"] = test_df
         state[asset]["forecast_rows"] = forecast_rows
 
         train_df = load_level_frame(config["train_csv"])
-        live_split = dict(state[asset]["data_split"] or {})
-        live_split["raw_train_rows"] = int(len(train_df))
-        live_split["raw_test_rows"] = int(len(test_df))
+        live_split = {
+            "raw_train_rows": int(len(train_df)),
+            "raw_test_rows": int(len(test_df))
+        }
         if not train_df.empty and "Date_obj" in train_df.columns:
             live_split["raw_train_last_date"] = str(train_df.iloc[-1]["Date_obj"])
         if not test_df.empty and "Date_obj" in test_df.columns:
@@ -479,28 +447,40 @@ def get_status(asset: str):
     log_arr = []
     y_true_arr = []
     y_pred_arr = []
-    y_prev_arr = []   # P_t (yesterday's actual price) for laziness check
+    y_prev_arr = []   # P_t (last context price) for directional accuracy
 
     for i, row in enumerate(forecast_rows[:idx]):
-        y_true_arr.append(float(row["actual_price"]))
-        y_pred_arr.append(float(row["predicted_price"]))
-        # context_end_price is the last price the model saw (= P_t)
-        y_prev_arr.append(float(row.get("context_end_price") or row["actual_price"]))
+        actual = float(row["actual_price"])
+        pred   = float(row["predicted_price"])
+        ctx_price_raw = row.get("context_end_price")
+        # context_end_price is P_t — the anchor the model used for reconstruction.
+        # Never fall back to actual_price (P_{t+1}) as that corrupts directional calc.
+        ctx_price = float(ctx_price_raw) if ctx_price_raw is not None else actual
+
+        y_true_arr.append(actual)
+        y_pred_arr.append(pred)
+        y_prev_arr.append(ctx_price)
+
         log_arr.append({
             "date": row["date"],
-            "actual": round(float(row["actual_price"]), 2),
-            "predicted": round(float(row["predicted_price"]), 2),
+            "actual": round(actual, 2),
+            "predicted": round(pred, 2),
             "context_end_date": row.get("context_end_date"),
-            "context_end_price": round(float(row.get("context_end_price") or row["actual_price"]), 2),
+            "context_end_price": round(ctx_price, 2),
         })
 
     # -----------------------------------------------------------------
     # Rolling metrics
+    # actual_price        = P_{t+1}  (real next-day price)
+    # predicted_price     = P^{t+1}  (model forecast for that same day)
+    # context_end_price   = P_t      (last known price when forecast was made)
     # -----------------------------------------------------------------
     rolling_rmse = None
     rolling_r2 = None
     rolling_dir_acc = None
     rolling_lazy = None        # True if model correlates more with P_t than P_{t+1}
+    corr_actual = None
+    corr_lag1   = None
 
     n = len(y_true_arr)
     if n > 1:
@@ -511,20 +491,17 @@ def get_status(asset: str):
         rolling_rmse = round(float(np.sqrt(mean_squared_error(y_true_np, y_pred_np))), 4)
         rolling_r2   = round(float(r2_score(y_true_np, y_pred_np)), 4)
 
-        # Directional accuracy: was the predicted move in the right direction?
-        # direction = sign(P_{t+1}_pred - P_t) vs sign(P_{t+1}_actual - P_t)
+        # Directional accuracy: sign(P^{t+1} - P_t) == sign(P_{t+1} - P_t)
         actual_direction = np.sign(y_true_np - y_prev_np)
         pred_direction   = np.sign(y_pred_np  - y_prev_np)
         rolling_dir_acc  = round(float(np.mean(actual_direction == pred_direction)), 4)
 
-        # Laziness: does pred correlate more with P_t than P_{t+1}?
-        if np.std(y_pred_np) > 0 and np.std(y_true_np) > 0 and np.std(y_prev_np) > 0:
-            corr_actual = float(np.corrcoef(y_pred_np, y_true_np)[0, 1])
-            corr_lag1   = float(np.corrcoef(y_pred_np, y_prev_np)[0, 1])
+        # Laziness check: pred should correlate with P_{t+1}, not P_t.
+        # If corr(pred, P_t) > corr(pred, P_{t+1}) the model is lazy (predicts yesterday).
+        if np.std(y_pred_np) > 1e-8 and np.std(y_true_np) > 1e-8 and np.std(y_prev_np) > 1e-8:
+            corr_actual = round(float(np.corrcoef(y_pred_np, y_true_np)[0, 1]), 4)
+            corr_lag1   = round(float(np.corrcoef(y_pred_np, y_prev_np)[0, 1]), 4)
             rolling_lazy = bool(corr_lag1 > corr_actual)
-        else:
-            corr_actual = None
-            corr_lag1   = None
 
     yesterday_actual = None
     yesterday_pred   = None
@@ -543,7 +520,7 @@ def get_status(asset: str):
     return {
         "asset": asset,
         "dataset_label": config.get("dataset_label"),
-        "model_seed": st.get("model_seed"),
+        "model_seed": "Ensemble (6 seeds)",
         "data_split": st.get("data_split"),
         "simulation_day": idx,
         "current_date": str(current_calendar_date),
@@ -566,6 +543,8 @@ def get_status(asset: str):
         "rolling_r2": rolling_r2,
         "rolling_dir_acc": rolling_dir_acc,
         "rolling_lazy": rolling_lazy,
+        "corr_pred_actual": corr_actual,
+        "corr_pred_lag1": corr_lag1,
         "history_log": log_arr
     }
 
