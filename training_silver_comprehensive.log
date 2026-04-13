@@ -1,4 +1,28 @@
-2026-04-13 11:37:14,612 [INFO] Starting Full Silver Training Pipeline...
-2026-04-13 11:37:14,612 [INFO] Loading datasets from silver_RRL_interpolate_extended_train.csv and silver_RRL_interpolate_extended_test.csv
-2026-04-13 11:37:14,623 [INFO] Using strictly features: ['Silver_Futures', 'Gold_Futures', 'US30', 'SnP500', 'NASDAQ_100', 'USD_index']
-2026-04-13 11:37:14,638 [INFO] Running Optuna Optimization...
+2026-04-14 05:42:33,611 [INFO] Starting Full Silver Training Pipeline...
+2026-04-14 05:42:33,611 [INFO] Loading datasets from silver_RRL_interpolate_extended_train.csv and silver_RRL_interpolate_extended_test.csv
+2026-04-14 05:42:33,621 [INFO] Using strictly features: ['Silver_Futures', 'Gold_Futures', 'US30', 'SnP500', 'NASDAQ_100', 'USD_index']
+2026-04-14 05:42:33,637 [INFO] Using hyperparameters from the paper.
+2026-04-14 05:42:33,722 [INFO] Final Training Seed 0...
+2026-04-14 05:42:55,856 [INFO] Seed 0 | Epoch 50 | Test Loss 0.3929
+2026-04-14 05:43:17,159 [INFO] Seed 0 | Epoch 100 | Test Loss 0.4339
+2026-04-14 05:43:37,670 [INFO] Seed 0 | Epoch 150 | Test Loss 0.4327
+2026-04-14 05:43:37,687 [INFO] Final Training Seed 1...
+2026-04-14 05:43:57,971 [INFO] Seed 1 | Epoch 50 | Test Loss 0.4906
+2026-04-14 05:44:18,975 [INFO] Seed 1 | Epoch 100 | Test Loss 0.4955
+2026-04-14 05:44:39,384 [INFO] Seed 1 | Epoch 150 | Test Loss 0.4987
+2026-04-14 05:44:39,401 [INFO] Final Training Seed 2...
+2026-04-14 05:44:59,638 [INFO] Seed 2 | Epoch 50 | Test Loss 0.3892
+2026-04-14 05:45:19,710 [INFO] Seed 2 | Epoch 100 | Test Loss 0.3937
+2026-04-14 05:45:40,268 [INFO] Seed 2 | Epoch 150 | Test Loss 0.3725
+2026-04-14 05:45:40,283 [INFO] Final Training Seed 42...
+2026-04-14 05:46:00,511 [INFO] Seed 42 | Epoch 50 | Test Loss 0.3249
+2026-04-14 05:46:20,490 [INFO] Seed 42 | Epoch 100 | Test Loss 0.3870
+2026-04-14 05:46:40,904 [INFO] Seed 42 | Epoch 150 | Test Loss 0.4013
+2026-04-14 05:46:40,918 [INFO] Final Training Seed 99...
+2026-04-14 05:47:01,606 [INFO] Seed 99 | Epoch 50 | Test Loss 0.3935
+2026-04-14 05:47:21,938 [INFO] Seed 99 | Epoch 100 | Test Loss 0.3960
+2026-04-14 05:47:42,347 [INFO] Seed 99 | Epoch 150 | Test Loss 0.3881
+2026-04-14 05:47:42,368 [INFO] Final Training Seed 123...
+2026-04-14 05:48:03,219 [INFO] Seed 123 | Epoch 50 | Test Loss 0.4347
+2026-04-14 05:48:23,628 [INFO] Seed 123 | Epoch 100 | Test Loss 0.3393
+2026-04-14 05:48:45,151 [INFO] Seed 123 | Epoch 150 | Test Loss 0.3140

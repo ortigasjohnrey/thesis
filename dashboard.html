@@ -3,745 +3,486 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financial Forecasting Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>Hybrid CNN-BiLSTM Forecasting Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg: #0b0c10;
-            --surface: #14161f;
-            --surface-glass: rgba(20, 22, 31, 0.7);
-            --primary: #4ecca3;
-            --success: #3be282;
-            --danger: #ff5252;
-            --gold: #ffd700;
-            --silver: #c0c0c0;
-            --text-main: #e0e6ed;
-            --text-muted: #8892b0;
-            --card-border: rgba(255, 255, 255, 0.05);
+            /* Palette: Modern Financial Dark */
+            --bg: hsl(230, 20%, 5%);
+            --surface: hsl(230, 20%, 8%);
+            --surface-accent: hsl(230, 20%, 12%);
+            --glass: rgba(20, 22, 31, 0.6);
+            --primary: hsl(185, 100%, 50%);
+            --primary-glow: hsla(185, 100%, 50%, 0.3);
+            --success: hsl(150, 100%, 45%);
+            --danger: hsl(0, 100%, 65%);
+            --gold: hsl(45, 100%, 50%);
+            --silver: hsl(0, 0%, 75%);
+            --text: hsl(210, 20%, 95%);
+            --text-muted: hsl(210, 10%, 60%);
+            --border: hsla(210, 20%, 100%, 0.08);
+            --card-radius: 24px;
         }
+
+        * { box-sizing: border-box; }
 
         body {
             background-color: var(--bg);
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
             margin: 0;
+            padding: 0;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             background-image: 
-                radial-gradient(circle at 15% 50%, rgba(78, 204, 163, 0.1), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(255, 215, 0, 0.05), transparent 25%);
+                radial-gradient(circle at 0% 0%, hsla(185, 100%, 50%, 0.05), transparent 40%),
+                radial-gradient(circle at 100% 100%, hsla(45, 100%, 50%, 0.03), transparent 40%);
+            background-attachment: fixed;
+            overflow-x: hidden;
         }
 
+        /* --- Header & Navigation --- */
         header {
-            width: 100%;
-            padding: 2rem 0;
-            text-align: center;
-            border-bottom: 1px solid var(--card-border);
-            background: var(--surface-glass);
-            backdrop-filter: blur(10px);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        h1 {
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand h1 {
             margin: 0;
-            font-size: 2.5rem;
-            background: linear-gradient(90deg, #fff, var(--primary));
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff, var(--primary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .asset-toggle {
-            margin-top: 1.5rem;
+        .asset-switcher {
             display: flex;
-            gap: 1rem;
-            justify-content: center;
-        }
-
-        .toggle-btn {
-            background: var(--surface);
-            border: 1px solid var(--card-border);
-            color: var(--text-muted);
-            padding: 0.75rem 2rem;
-            border-radius: 30px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .toggle-btn.active.gold {
-            background: rgba(255, 215, 0, 0.15);
-            border-color: var(--gold);
-            color: var(--gold);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
-        }
-
-        .toggle-btn.active.silver {
-            background: rgba(192, 192, 192, 0.15);
-            border-color: var(--silver);
-            color: var(--silver);
-            box-shadow: 0 0 15px rgba(192, 192, 192, 0.2);
-        }
-
-        .container {
-            max-width: 1100px;
-            width: 90%;
-            margin: 3rem auto;
-            flex: 1;
-        }
-
-        .day-info {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        .day-info h2 {
-            color: var(--text-muted);
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .date-badge {
-            display: inline-block;
-            background: rgba(78, 204, 163, 0.15);
-            color: var(--primary);
-            padding: 0.5rem 1.5rem;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 1.5rem;
-            letter-spacing: 2px;
-            box-shadow: 0 4px 20px rgba(78, 204, 163, 0.2);
-        }
-
-        .date-controls {
-            margin-top: 1.5rem;
-            display: flex;
-            justify-content: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .top-bar {
-            max-width: 1100px;
-            width: 90%;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 80px;
-        }
-
-        .asset-selector {
-            display: flex;
-            gap: 15px;
+            background: var(--surface-accent);
+            padding: 4px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
         }
 
         .asset-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-muted);
-            padding: 0.6rem 1.5rem;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .asset-btn.active {
-            background: var(--primary);
-            color: #0b0c10;
-        }
-
-        .regime-btn {
             background: transparent;
             border: none;
             color: var(--text-muted);
-            padding: 0.5rem 1.2rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-transform: uppercase;
-        }
-        .regime-btn.active {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-        }
-        #regime-lively.active { color: var(--primary); }
-
-        .date-input {
-            background: var(--surface);
-            border: 1px solid var(--card-border);
-            border-radius: 14px;
-            padding: 0.85rem 1rem;
-            font-size: 1rem;
-            font-family: inherit;
-        }
-
-        .date-input::-webkit-calendar-picker-indicator {
-            filter: invert(0.9);
-            cursor: pointer;
-        }
-
-        .btn-secondary {
-            background: rgba(78, 204, 163, 0.12);
-            color: var(--primary);
-            border: 1px solid rgba(78, 204, 163, 0.25);
-            border-radius: 14px;
-            padding: 0.9rem 1.2rem;
-            font-size: 0.95rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.25s ease;
-        }
-
-        .btn-secondary:hover {
-            transform: translateY(-1px);
-            background: rgba(78, 204, 163, 0.18);
-        }
-
-        .date-helper {
-            margin-top: 0.85rem;
-            color: var(--text-muted);
+            padding: 0.6rem 1.5rem;
+            border-radius: 12px;
             font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .model-helper {
-            margin-top: 0.85rem;
-            color: var(--text-muted);
-            font-size: 0.92rem;
-            text-align: center;
-        }
+        .asset-btn.active.gold { background: var(--gold); color: #000; }
+        .asset-btn.active.silver { background: var(--silver); color: #000; }
 
-        .dashboard-grid {
+        /* --- Main Content --- */
+        main {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 320px 1fr;
             gap: 2rem;
-            margin-bottom: 2rem;
         }
 
-        .card {
+        /* --- Sidebar Metrics --- */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .kpi-card {
             background: var(--surface);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 2.5rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease;
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             position: relative;
             overflow: hidden;
         }
 
-        .card::before {
+        .kpi-card::after {
             content: '';
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 4px;
+            top: 0; right: 0; bottom: 0; width: 4px;
+            background: var(--primary);
+            opacity: 0.5;
         }
-        
-        .card.today::before { background: var(--primary); }
-        .card.yesterday::before { background: var(--text-muted); }
 
-        .card h3 {
-            margin: 0 0 1.5rem 0;
-            color: var(--text-muted);
-            font-size: 1.1rem;
+        .kpi-label {
+            font-size: 0.75rem;
+            font-weight: 600;
             text-transform: uppercase;
+            color: var(--text-muted);
             letter-spacing: 1px;
         }
 
-        .price-display {
-            font-size: 3.5rem;
-            font-weight: 800;
-            margin-bottom: 0.5rem;
-        }
-
-        .price-label {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-        }
-        
-        .yesterday-stats {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-top: 1rem;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 1rem;
-        }
-        
-        .stat-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .stat-group.right-aligned {
-            align-items: flex-end;
-            text-align: right;
-        }
-
-        .stat-value {
+        .kpi-value {
             font-size: 2rem;
             font-weight: 800;
+            line-height: 1;
         }
-        
-        .metric-block {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 1rem;
-            background: rgba(255, 255, 255, 0.02);
-            padding: 1rem;
-            border-radius: 10px;
-        }
-        
-        .metric-item {
-            text-align: center;
-        }
-        
-        .metric-val {
-            font-size: 1.5rem;
+
+        .kpi-trend {
+            font-size: 0.85rem;
             font-weight: 600;
-            color: var(--primary);
         }
 
-        .action-area {
-            text-align: center;
-            margin-top: 3rem;
-            margin-bottom: 3rem;
+        /* --- Dashboard Center --- */
+        .dashboard-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
         }
 
-        .btn-next {
-            background: linear-gradient(135deg, #1aa37a, var(--primary));
-            color: #0b0c10;
-            border: none;
-            padding: 1.5rem 4rem;
-            border-radius: 40px;
-            font-size: 1.5rem;
-            font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(78, 204, 163, 0.4);
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .btn-next:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(78, 204, 163, 0.6);
-        }
-        
-        .btn-next:disabled {
-            background: var(--surface);
-            color: var(--text-muted);
-            box-shadow: none;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .chart-container {
-            background: var(--surface);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
+        .chart-section {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
             padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            margin-bottom: 2rem;
-            height: 400px;
+            height: 500px;
             position: relative;
         }
 
-        .history-table-container {
-            background: var(--surface);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            margin-bottom: 3rem;
-        }
-        
-        .history-table-container h3, .chart-container h3 {
-            color: var(--text-muted);
-            margin-top: 0;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 1rem;
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
         }
 
-        .overall-stats-bar {
+        .chart-stats-overlay {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            background: rgba(10, 12, 18, 0.6);
+            backdrop-filter: blur(8px);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            z-index: 10;
             display: flex;
             gap: 1.5rem;
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
-            font-size: 0.9rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            margin-top: 1rem;
-        }
-        .overall-stats-bar div { display: flex; flex-direction: column; }
-        .overall-stats-bar .label { color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .overall-stats-bar .value { font-weight: 700; color: #ffffff; font-size: 1.1rem; }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            margin-top: 1rem;
+            pointer-events: none;
         }
 
-        th {
-            color: var(--text-muted);
-            padding: 1rem;
-            border-bottom: 2px solid var(--card-border);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85rem;
-        }
-
-        th.text-right, td.text-right {
-            text-align: right;
-        }
-
-        td {
-            padding: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-            font-size: 1rem;
-        }
-        
-        .cell-predicted { color: var(--primary); font-weight: 600; }
-        .cell-actual { color: #fff; font-weight: 600; }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(11, 12, 16, 0.8);
-            backdrop-filter: blur(5px);
+        .stat-item {
             display: flex;
             flex-direction: column;
-            justify-content: center;
+        }
+
+        .stat-tiny-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .card-glass {
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            padding: 2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .card-glass:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .price-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .price-main {
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 4px;
+        }
+
+        .price-sub {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        /* --- Controls & Status --- */
+        .control-panel {
+            display: flex;
+            gap: 1.5rem;
             align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
+            background: var(--surface-accent);
+            padding: 1rem 2rem;
+            border-radius: 24px;
+            border: 1px solid var(--border);
         }
 
-        .loading-overlay.active {
-            opacity: 1;
-            pointer-events: all;
+        .btn-action {
+            background: var(--primary);
+            color: var(--bg);
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 16px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 16px var(--primary-glow);
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(78, 204, 163, 0.2);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        .btn-action:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 24px var(--primary-glow);
         }
 
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        @media (max-width: 768px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .date-controls {
-                flex-direction: column;
-            }
-
-            #historyChart {
-                height: 300px;
-            }
+        .btn-action:disabled {
+            background: var(--surface-accent);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
         }
 
-        /* Diagnostic Console Styling */
-        .diagnostic-console {
-            margin-top: 2rem;
-            background: #0d1117;
-            border: 1px solid #30363d;
+        .status-badge {
+            padding: 0.5rem 1rem;
             border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
         }
-        .console-header {
+
+        .status-badge.active {
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* --- Forensic Terminal --- */
+        .terminal {
+            background: #000;
+            border-radius: 20px;
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+        }
+
+        .terminal-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             margin-bottom: 1rem;
-            border-bottom: 1px solid #30363d;
+            color: var(--text-muted);
+            border-bottom: 1px solid #222;
             padding-bottom: 0.5rem;
         }
-        .console-header h3 {
-            margin: 0;
-            font-size: 0.9rem;
-            color: var(--primary);
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .console-viewport {
-            height: 250px;
-            overflow-y: auto;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            font-size: 0.8rem;
-            line-height: 1.5;
-            color: #c9d1d9;
-            padding: 0.5rem;
-            scrollbar-width: thin;
-            scrollbar-color: #30363d #0d1117;
-        }
-        .log-line {
-            margin-bottom: 0.4rem;
-            display: flex;
-            gap: 1rem;
-        }
-        .log-time { color: #8b949e; flex-shrink: 0; }
-        .log-tag { font-weight: 700; flex-shrink: 0; min-width: 80px; }
-        .log-tag.success { color: #3fb950; }
-        .log-tag.error { color: #f85149; }
-        .log-tag.warn { color: #d29922; }
-        .log-tag.info { color: #58a6ff; }
-        .log-tag.flush { color: #bf91ff; }
-        .log-msg { color: #c9d1d9; word-break: break-all; }
 
+        .terminal-content {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-line { display: flex; gap: 12px; }
+        .log-date { color: #555; }
+        .log-tag { font-weight: 800; }
+        .log-tag.success { color: var(--success); }
+        .log-tag.error { color: var(--danger); }
+        .log-tag.info { color: var(--primary); }
+        .log-msg { color: #ccc; }
+
+        /* --- Responsive --- */
+        @media (max-width: 1000px) {
+            main { grid-template-columns: 1fr; }
+            .sidebar { flex-direction: row; flex-wrap: wrap; }
+            .kpi-card { flex: 1; min-width: 200px; }
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="top-bar">
-            <div class="asset-selector">
-                <button class="asset-btn active" id="btn-gold" onclick="switchAsset('gold')">Gold (XAU)</button>
-                <button class="asset-btn" id="btn-silver" onclick="switchAsset('silver')">Silver (XAG)</button>
-            </div>
-            
-            <div class="regime-selector" style="display: flex; gap: 0.5rem; align-items: center; background: rgba(255,255,255,0.05); padding: 0.4rem; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);">
-                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Market Regime:</span>
-                <button class="regime-btn active" id="regime-lively" onclick="setRegime('lively')">Lively</button>
-                <button class="regime-btn" id="regime-standard" onclick="setRegime('standard')">Standard</button>
-            </div>
-            
-            <div class="brand">
-                <div class="model-helper" id="asset-model-label">Loading active model...</div>
-            </div>
+        <div class="brand">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <rect x="4" y="4" width="24" height="24" rx="6" fill="url(#grad)" />
+                <path d="M10 16L14 20L22 12" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <defs>
+                    <linearGradient id="grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#00F5FF" />
+                        <stop offset="1" stop-color="#0066FF" />
+                    </linearGradient>
+                </defs>
+            </svg>
+            <h1>HYPER-PIVOT ENGINE</h1>
+        </div>
+
+        <div class="asset-switcher">
+            <button id="btn-gold" class="asset-btn active gold" onclick="switchAsset('gold')">GOLD</button>
+            <button id="btn-silver" class="asset-btn silver" onclick="switchAsset('silver')">SILVER</button>
         </div>
     </header>
 
-    <div class="container">
-        
-        <div class="day-info">
-            <h2>Target Simulation Date</h2>
-            <div class="date-badge" id="today-date">--</div>
-            <div class="date-controls">
-                <input class="date-input" type="date" id="today-picker">
-                <button class="btn-secondary" id="use-today-btn" onclick="useReferenceToday()">
-                    Use Today
-                </button>
-                <button class="btn-secondary" id="set-date-btn" onclick="setSimulationDate()">
-                    Set This As Today
-                </button>
+    <main>
+        <div class="sidebar">
+            <div class="kpi-card">
+                <span class="kpi-label">Overall RMSE</span>
+                <span id="kpi-rmse" class="kpi-value">--</span>
+                <span class="kpi-trend text-muted">Dollar Precision</span>
             </div>
-            <div class="date-helper">
-                Pick any simulation day in the test window and the dashboard will realign to it.
+            <div class="kpi-card">
+                <span class="kpi-label">Overall MAE</span>
+                <span id="kpi-mae" class="kpi-value">--</span>
+                <span class="kpi-trend text-muted">Dollar Accuracy</span>
             </div>
-            <div class="date-helper" id="today-alignment-note">
-                --
+            <div class="kpi-card">
+                <span class="kpi-label">Market Tracking (R²)</span>
+                <span id="kpi-r2" class="kpi-value">--</span>
+                <span id="kpi-r2-status" class="kpi-trend">--</span>
             </div>
-        </div>
-
-        <div class="dashboard-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">Directional Accuracy (20D)</span>
+                <span id="kpi-da" class="kpi-value" style="color: var(--primary);">--</span>
+                <span class="kpi-trend text-muted">Recent "Hit" Consistency</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Mean Directional Accuracy</span>
+                <span id="kpi-mda" class="kpi-value" style="color: var(--primary);">--</span>
+                <span class="kpi-trend text-muted">Overall Simulation Reliability</span>
+            </div>
             
-            <!-- Yesterday Card -->
-            <div class="card yesterday">
-                <h3>Previous Assessment</h3>
-                
-                <div class="yesterday-stats">
-                    <div class="stat-group">
-                        <span class="price-label">Actual Close</span>
-                        <span class="stat-value" id="yest-actual">--</span>
-                    </div>
-                    <div class="stat-group right-aligned">
-                        <span class="price-label">Model Prediction</span>
-                        <span class="stat-value" id="yest-pred" style="color: var(--text-muted);">--</span>
-                    </div>
-                </div>
-                
-                <div class="metric-block" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                    <div class="metric-item">
-                        <div class="price-label">All-Time R²</div>
-                        <div class="metric-val" id="top-overall-r2">--</div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="price-label">Recent R² (20d)</div>
-                        <div class="metric-val" id="top-rolling-r2" style="color: var(--primary);">--</div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="price-label">Total RMSE</div>
-                        <div class="metric-val" id="top-overall-rmse">--</div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="price-label">Dir. Accuracy</div>
-                        <div class="metric-val" id="top-metric-dir-acc">--</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Today Card -->
-            <div class="card today">
-                <h3>Next Market Forecast</h3>
-                <div class="price-display" id="today-pred" style="color: var(--primary);">--</div>
-                <div style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
-                    Model inference uses the latest available market context. The actual close appears in the log on the next market day.
-                </div>
-                
-                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
-                    <span class="price-label">Forecast Target Date:</span>
-                    <div style="font-weight: 600; margin-top: 0.5rem;" id="forecast-date">--</div>
-                </div>
-
-                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--card-border);">
-                    <span class="price-label">Model Predicts Based on Sequence Ending:</span>
-                    <div style="font-weight: 600; margin-top: 0.5rem;" id="last-train-date">--</div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="action-area">
-            <button class="btn-next" id="next-btn" onclick="nextDay()">
-                Proceed to Next Day
-            </button>
-            <div style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-                This only advances the calendar. Forecasts are precomputed once from frozen model weights.
-            </div>
-        </div>
-        
-        <div class="chart-container">
-            <h3>Visual Log Tracking</h3>
-            <div class="overall-stats-bar">
-                <div>
-                    <span class="label">Total RMSE</span>
-                    <span class="value" id="bar-overall-rmse">--</span>
-                </div>
-                <div>
-                    <span class="label">Total R²</span>
-                    <span class="value" id="bar-overall-r2">--</span>
-                </div>
-                <div>
-                    <span class="label">Total Dir. Acc.</span>
-                    <span class="value" id="bar-overall-dir-acc">--</span>
-                </div>
-                <div style="margin-left: auto; text-align: right;">
-                    <span class="label">Total Samples</span>
-                    <span class="value" id="total-samples">0</span>
-                </div>
-            </div>
-            <canvas id="historyChart"></canvas>
-        </div>
-
-        <!-- Diagnostic Console -->
-        <div class="diagnostic-console">
-            <div class="console-header">
-                <h3>System Diagnostic Terminal</h3>
-                <span style="font-size: 0.7rem; color: #8b949e;">AUTOSCROLL: ON | ENGINE: V1.1</span>
-            </div>
-            <div class="console-viewport" id="console-logs">
-                <div class="log-line">
-                    <span class="log-time">[INITIALIZING]</span>
-                    <span class="log-tag info">INFO</span>
-                    <span class="log-msg">Connecting to forecasting engine... Waiting for first simulation day.</span>
+            <div style="margin-top: auto; padding: 1rem; background: var(--surface-accent); border-radius: 16px;">
+                <span class="price-label" style="display:block; margin-bottom: 12px;">Market Regime</span>
+                <div style="display: flex; gap: 8px;">
+                    <button id="regime-standard" class="status-badge" onclick="setRegime('standard')">Standard</button>
+                    <button id="regime-lively" class="status-badge" onclick="setRegime('lively')">Lively</button>
                 </div>
             </div>
         </div>
-        
-        <div class="history-table-container">
-            <h3>Historical Prediction Log</h3>
-            <div style="max-height: 400px; overflow-y: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Forecast Date</th>
-                            <th class="text-right">Actual Price</th>
-                            <th class="text-right">Predicted Price</th>
-                            <th class="text-right">Error %</th>
-                            <th class="text-right">Direct.</th>
-                            <th class="text-right">Context End</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-body">
-                        <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Awaiting Simulation Data...</td></tr>
-                    </tbody>
-                </table>
+
+        <div class="dashboard-main">
+            <div class="forecast-grid">
+                <div class="card-glass">
+                    <span class="price-label">Today's Model Forecast</span>
+                    <div id="price-target" class="price-main">--</div>
+                    <div class="price-sub">Date: <span id="forecast-date">--</span> | Council: <span id="council-agreement">--</span></div>
+                </div>
+                <div class="card-glass" style="border-left: 4px solid var(--primary);">
+                    <span class="price-label">Yesterday's Accuracy</span>
+                    <div id="prev-actual" class="price-main" style="font-size: 2rem;">--</div>
+                    <div class="price-sub">Pred: <span id="prev-pred">--</span> | <span id="prev-delta" style="color: var(--primary)">$0.00</span></div>
+                </div>
+                <div class="card-glass">
+                    <span class="price-label">Performance Score</span>
+                    <div id="perf-score" class="price-main">--%</div>
+                    <div class="price-sub">Directional Hit Rate</div>
+                </div>
+            </div>
+
+            <div class="chart-section" style="position: relative;">
+                <div class="chart-stats-overlay">
+                    <div class="stat-item">
+                        <span class="stat-tiny-label">Market Tracking (R²)</span>
+                        <span id="chart-r2" class="stat-value">--</span>
+                    </div>
+                </div>
+                <canvas id="predictionChart"></canvas>
+            </div>
+
+            <div class="control-panel">
+                <button id="next-btn" class="btn-action" onclick="nextDay()">REVEAL NEXT MARKET DAY</button>
+                <div style="flex: 1"></div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="price-label" style="margin:0">Simulation Date:</span>
+                    <input type="date" id="date-picker" class="status-badge" style="background:transparent; border:1px solid var(--border); color:inherit;" onchange="setSimulationDate()">
+                </div>
+            </div>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <span>FORENSIC DIAGNOSTIC TERMINAL</span>
+                    <span id="log-count">0 SAMPLES</span>
+                </div>
+                <div id="console-logs" class="terminal-content">
+                    <!-- Logs injection -->
+                </div>
             </div>
         </div>
-
-    </div>
-
-    <div class="loading-overlay" id="loader">
-        <div class="spinner"></div>
-    </div>
+    </main>
 
     <script>
-        const API_BASE = '/api';
-        let currentAsset = 'gold';
-        let mainChart = null;
-
-        function setBusyState(isBusy) {
-            document.getElementById('loader').classList.toggle('active', isBusy);
-            document.getElementById('next-btn').disabled = isBusy;
-            document.getElementById('use-today-btn').disabled = isBusy;
-            document.getElementById('set-date-btn').disabled = isBusy;
-            document.getElementById('today-picker').disabled = isBusy;
-        }
-
-        Chart.defaults.color = '#8892b0';
-        Chart.defaults.font.family = 'Inter';
+        const API_BASE = "/api";
+        let currentAsset = "gold";
+        let chart = null;
 
         function initChart() {
-            const ctx = document.getElementById('historyChart').getContext('2d');
-            mainChart = new Chart(ctx, {
+            const ctx = document.getElementById('predictionChart').getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(0, 245, 255, 0.15)');
+            gradient.addColorStop(1, 'rgba(0, 245, 255, 0)');
+
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [
                         {
                             label: 'Actual Price',
-                            data: [],
-                            borderColor: '#ffffff',
-                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            borderColor: '#888',
                             borderWidth: 2,
-                            tension: 0,
                             pointRadius: 0,
-                            pointHoverRadius: 6
+                            data: [],
+                            spanGaps: true
                         },
                         {
-                            label: 'Predicted Price',
+                            label: 'Model Forecast',
+                            borderColor: '#00F5FF',
+                            backgroundColor: gradient,
+                            fill: true,
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#00F5FF',
                             data: [],
-                            borderColor: currentAsset === 'gold' ? '#ffd700' : '#4ecca3',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            tension: 0,
-                            pointRadius: 0,
-                            pointHoverRadius: 6
-                        },
-                        {
-                            label: 'Pending Forecast',
-                            data: [],
-                            borderColor: currentAsset === 'gold' ? '#ffd700' : '#4ecca3',
-                            backgroundColor: currentAsset === 'gold' ? '#ffd700' : '#4ecca3',
-                            borderWidth: 0,
-                            showLine: false,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
+                            tension: 0.4
                         }
                     ]
                 },
@@ -752,304 +493,207 @@
                         mode: 'index',
                         intersect: false,
                     },
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: { backgroundColor: 'rgba(20, 22, 31, 0.9)', titleFont: {size: 14}, bodyFont: {size: 14}, padding: 12 }
-                    },
                     scales: {
-                        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' } },
-                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' } }
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: '#888', maxRotation: 45, minRotation: 45 } 
+                        },
+                        y: { 
+                            grid: { color: 'rgba(255,255,255,0.05)' }, 
+                            position: 'right',
+                            beginAtZero: false,
+                            grace: '10%',
+                            ticks: { 
+                                color: '#888', 
+                                callback: val => '$' + val.toLocaleString() 
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(20, 22, 31, 1)',
+                            titleFont: { family: 'Outfit', size: 14, weight: 'bold' },
+                            bodyFont: { family: 'Outfit', size: 13 },
+                            padding: 12,
+                            borderColor: 'rgba(0, 245, 255, 0.3)',
+                            borderWidth: 1,
+                            displayColors: true,
+                            callbacks: {
+                                label: (ctx) => ` ${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                            }
+                        }
                     }
                 }
             });
-        }
-
-        function updateChart(historyLog, forecastDate = null, forecastPred = null) {
-            if (!mainChart) initChart();
-            
-            mainChart.data.datasets[1].borderColor = currentAsset === 'gold' ? '#ffd700' : '#4ecca3';
-            mainChart.data.datasets[2].borderColor = currentAsset === 'gold' ? '#ffd700' : '#4ecca3';
-            mainChart.data.datasets[2].backgroundColor = currentAsset === 'gold' ? '#ffd700' : '#4ecca3';
-
-            let labels = [];
-            let actualSeries = [];
-            let predictedSeries = [];
-
-            if (historyLog && historyLog.length > 0) {
-                const chronoLog = [...historyLog].reverse();
-                labels = chronoLog.map(r => r.date);
-                actualSeries = chronoLog.map(r => r.actual);
-                predictedSeries = chronoLog.map(r => r.predicted);
-            }
-
-            let pendingSeries = new Array(labels.length).fill(null);
-            if (forecastDate && forecastPred !== null && forecastPred !== undefined) {
-                let pendingIdx = labels.indexOf(forecastDate);
-                if (pendingIdx === -1) {
-                    pendingIdx = labels.length;
-                    labels.push(forecastDate);
-                    actualSeries.push(null);
-                    predictedSeries.push(null);
-                    pendingSeries.push(forecastPred);
-                } else {
-                    pendingSeries[pendingIdx] = forecastPred;
-                }
-            }
-
-            mainChart.data.labels = labels;
-            mainChart.data.datasets[0].data = actualSeries;
-            mainChart.data.datasets[1].data = predictedSeries;
-            mainChart.data.datasets[2].data = pendingSeries;
-            mainChart.update();
         }
 
         async function fetchStatus() {
             try {
                 const res = await fetch(`${API_BASE}/status/${currentAsset}`);
                 const data = await res.json();
+                if (data.error) return;
+
+                // 1. Current Prediction Info
+                const predPrice = data.predicted_price || 0;
+                const agreement = data.council_agreement || 0;
                 
-                if (data.error) {
-                    alert(data.error);
-                    document.getElementById('next-btn').disabled = true;
-                    return;
-                }
+                document.getElementById('price-target').innerText = `$${predPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('forecast-date').innerText = data.forecast_date || '--';
+                document.getElementById('council-agreement').innerText = `${agreement.toFixed(0)}%`;
+                const datePicker = document.getElementById('date-picker');
+                datePicker.value = data.current_date || '';
+                if (data.min_date) datePicker.min = data.min_date;
+                if (data.max_date) datePicker.max = data.max_date;
 
-                document.getElementById('today-date').innerText = data.current_date; 
-                document.getElementById('today-picker').value = data.current_date;
-                if (data.min_date) document.getElementById('today-picker').min = data.min_date;
-                if (data.max_date) document.getElementById('today-picker').max = data.max_date;
-                const todayNote = data.today_alignment_note
-                    ? data.today_alignment_note
-                    : `Reference today is ${data.reference_today}. Predictions can only use dates inside ${data.min_date} to ${data.max_date}.`;
-                document.getElementById('today-alignment-note').innerText = todayNote;
+                // Use API-provided metrics directly
+                const hitRate = data.overall_mda != null ? data.overall_mda : 0.0;
+                document.getElementById('perf-score').innerText = `${hitRate}%`;
+
+                // 2. Sample Reference (Yesterday/Last Day)
+                const lastLog = data.diagnostic_logs && data.diagnostic_logs.length > 0 
+                    ? data.diagnostic_logs[data.diagnostic_logs.length - 1] 
+                    : null;
                 
-                const pred = data.predicted_price;
-                if (pred !== null && pred !== undefined) {
-                    document.getElementById('today-pred').innerText = `$${pred.toFixed(2)}`;
-                    document.getElementById('today-pred').style.color = "var(--primary)";
-                    document.getElementById('forecast-date').innerText = data.forecast_date || '--';
-                } else {
-                    document.getElementById('today-pred').innerText = 'MARKET CLOSED';
-                    document.getElementById('today-pred').style.color = "var(--text-muted)";
-                    document.getElementById('forecast-date').innerText = '--';
-                }
+                // 3. Update Sidebar
+                const overallRMSE = (data.overall_rmse != null) ? `$${data.overall_rmse.toFixed(2)}` : '--';
+                const overallMAE = (data.overall_mae != null) ? `$${data.overall_mae.toFixed(2)}` : '--';
+                const overallR2 = (data.overall_r2 != null) ? data.overall_r2.toFixed(3) : '0.000';
+
+                document.getElementById('kpi-rmse').innerText = overallRMSE;
+                document.getElementById('kpi-mae').innerText = overallMAE;
+                document.getElementById('kpi-r2').innerText = overallR2;
+                document.getElementById('chart-r2').innerText = overallR2;
+
+                // 4. Update Directional Metrics
+                const overallMDA = (data.overall_mda != null) ? `${data.overall_mda}%` : '0.0%';
+                const rollingDA = (data.rolling_da != null) ? `${data.rolling_da}%` : '0.0%';
                 
-                if(data.yesterday_actual && data.yesterday_pred) {
-                    document.getElementById('yest-actual').innerText = `$${data.yesterday_actual.toFixed(2)}`;
-                    document.getElementById('yest-pred').innerText = `$${data.yesterday_pred.toFixed(2)}`;
-                } else if(data.yesterday_actual) {
-                    document.getElementById('yest-actual').innerText = `$${data.yesterday_actual.toFixed(2)}`;
-                    document.getElementById('yest-pred').innerText = '--';
-                } else {
-                    document.getElementById('yest-actual').innerText = 'Started...';
-                    document.getElementById('yest-pred').innerText = '--';
-                }
+                document.getElementById('kpi-mda').innerText = overallMDA;
+                document.getElementById('kpi-da').innerText = rollingDA;
                 
-                // Rolling stats (using calibrated model properties)
-                const dirAcc = data.rolling_dir_acc;
-                const dirAccEl = document.getElementById('top-metric-dir-acc');
-                if (dirAcc !== null && dirAcc !== undefined) {
-                    const pct = (dirAcc * 100).toFixed(1);
-                    dirAccEl.innerText = `${pct}%`;
-                    dirAccEl.style.color = dirAcc >= 0.5 ? 'var(--success)' : 'var(--danger)';
-                } else {
-                    dirAccEl.innerText = '--';
-                    dirAccEl.style.color = '';
-                }
+                // Logging for verification
+                console.log(`[STATUS] Asset: ${currentAsset} | Index: ${data.test_idx} | MDA: ${overallMDA} | DA: ${rollingDA}`);
 
-                const split = data.data_split || {};
-                let modelLabel = data.dataset_label || '--';
-                if (data.model_seed !== null && data.model_seed !== undefined) {
-                    modelLabel += ` | Seed ${data.model_seed}`;
-                }
-                if (split.requested_train_end_date) {
-                    const rawTestStart = split.raw_test_rows ? data.min_date : null;
-                    modelLabel += ` | Train through ${split.requested_train_end_date}`;
-                    if (rawTestStart) modelLabel += ` | Test from ${rawTestStart}`;
-                }
-                if (data.test_row_count) {
-                    modelLabel += ` | ${data.test_row_count} test rows`;
-                }
-                document.getElementById('asset-model-label').innerText = modelLabel;
-                
-                const mode = data.dataset_mode || 'lively';
-                document.getElementById('regime-lively').classList.toggle('active', mode === 'lively');
-                document.getElementById('regime-standard').classList.toggle('active', mode === 'standard');
-
-                // Unified Stats Rendering (Updating both Top Grid and Bar)
-                const rmseTxt = data.overall_rmse !== null && data.overall_rmse !== undefined ? `$${data.overall_rmse}` : '--';
-                const r2Txt = data.overall_r2 !== null && data.overall_r2 !== undefined ? data.overall_r2.toFixed(3) : '--';
-                const rollR2Txt = data.rolling_r2 !== null && data.rolling_r2 !== undefined ? data.rolling_r2.toFixed(3) : '--';
-                const accTxt = data.overall_dir_acc !== null ? `${(data.overall_dir_acc * 100).toFixed(1)}%` : '--';
-
-                // Apply to Top Grid
-                document.getElementById('top-overall-rmse').innerText = rmseTxt;
-                document.getElementById('top-overall-r2').innerText = r2Txt;
-                document.getElementById('top-rolling-r2').innerText = rollR2Txt;
-                document.getElementById('top-metric-dir-acc').innerText = accTxt;
-
-                // Apply to Visual Log Bar
-                document.getElementById('bar-overall-rmse').innerText = rmseTxt;
-                document.getElementById('bar-overall-r2').innerText = r2Txt;
-                document.getElementById('bar-overall-dir-acc').innerText = accTxt;
-
-                document.getElementById('total-samples').innerText = data.history_log ? data.history_log.length : 0;
-
-                document.getElementById('last-train-date').innerText = data.last_train_price ? `${data.last_train_date || '-'} @ $${data.last_train_price.toFixed(2)}` : '--';
-                
-                const tbody = document.getElementById('history-body');
-                tbody.innerHTML = '';
-                if(data.history_log && data.history_log.length > 0) {
-                    data.history_log.forEach(row => {
-                        const diff = row.actual - row.predicted;
-                        const diffColor = diff > 0 ? 'var(--success)' : 'var(--danger)';
-                        const diffStr = diff > 0 ? `+$${diff.toFixed(2)}` : `-$${Math.abs(diff).toFixed(2)}`;
-                        
-                        const hitEmoji = row.hit ? '✅' : '❌';
-                        const hitTitle = row.hit ? 'Correct Direction' : 'Wrong Direction';
-                        
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${row.date}</td>
-                            <td class="cell-actual text-right">$${row.actual.toFixed(2)}</td>
-                            <td class="cell-predicted text-right" style="color: ${diffColor};">$${row.predicted.toFixed(2)} <span style="font-size:0.8em;">(${diffStr})</span></td>
-                            <td class="text-right">${row.error_pct.toFixed(2)}%</td>
-                            <td class="text-right" title="${hitTitle}">${hitEmoji}</td>
-                            <td class="text-right" style="color: var(--text-muted); font-size: 0.85em;">${row.context_end_date || '--'}</td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Awaiting Simulation Data...</td></tr>';
-                }
-
-                updateChart(
-                    data.history_log,
-                    data.forecast_date,
-                    data.predicted_price
-                );
-                
-                if (data.diagnostic_logs) {
-                    renderDiagnosticLogs(data.diagnostic_logs);
-                }
-                
-            } catch(e) {
-                console.error(e);
-            }
-        }
-
-        async function setSimulationDate() {
-            const selectedDate = document.getElementById('today-picker').value;
-            if (!selectedDate) {
-                alert('Choose a date first.');
-                return;
-            }
-
-            setBusyState(true);
-            try {
-                const res = await fetch(`${API_BASE}/current_date/${currentAsset}?date=${encodeURIComponent(selectedDate)}`, {
-                    method: 'POST'
+                // Apply color coding to accuracy badges
+                [document.getElementById('kpi-mda'), document.getElementById('kpi-da')].forEach(el => {
+                    const val = parseFloat(el.innerText);
+                    if (!isNaN(val)) {
+                        el.style.color = val > 60 ? 'var(--primary)' : (val < 50 ? '#FF4B5C' : 'var(--text)');
+                    }
                 });
-                const data = await res.json();
-                if (!res.ok) {
-                    alert(data.detail || 'Failed to update simulation date.');
-                    return;
+
+                // Sync Yesterday's Accuracy Card
+                if (lastLog) {
+                    document.getElementById('prev-actual').innerText = `$${lastLog.actual_price.toLocaleString()}`;
+                    document.getElementById('prev-pred').innerText = `$${lastLog.pred_price.toLocaleString()}`;
+                    const delta = Math.abs(lastLog.actual_price - lastLog.pred_price);
+                    document.getElementById('prev-delta').innerText = `Δ $${delta.toFixed(2)}`;
                 }
-                await fetchStatus();
-            } catch (e) {
-                alert('Failed to reach API.');
-            }
-            setBusyState(false);
+
+                const r2Badge = document.getElementById('kpi-r2-status');
+                const rVal = (data.overall_r2 || 0);
+                r2Badge.innerText = rVal > 0.8 ? 'EXCELLENT' : (rVal > 0.5 ? 'STABLE' : 'DRIFTING');
+                r2Badge.style.color = rVal > 0.5 ? 'var(--primary)' : '#FF4B5C';
+
+                // 5. Regime & Logs
+                document.getElementById('regime-lively').classList.toggle('active', data.dataset_mode === 'lively');
+                document.getElementById('regime-standard').classList.toggle('active', data.dataset_mode === 'standard');
+                renderLogs(data.diagnostic_logs);
+
+                // 6. Chart
+                updateChart(data.history_log, data.forecast_date, data.predicted_price);
+             } catch (e) { 
+                console.error("Fetch Error:", e);
+             }
         }
 
-        async function useReferenceToday() {
-            setBusyState(true);
-            try {
-                const res = await fetch(`${API_BASE}/use_today/${currentAsset}`, { method: 'POST' });
-                const data = await res.json();
-                if (!res.ok) {
-                    alert(data.detail || 'Failed to align the dashboard to today.');
-                    return;
-                }
-                await fetchStatus();
-            } catch (e) {
-                alert('Failed to reach API.');
-            }
-            setBusyState(false);
-        }
-
-        async function nextDay() {
-            setBusyState(true);
-            try {
-                await fetch(`${API_BASE}/next_day/${currentAsset}`, { method: 'POST' });
-                await fetchStatus();
-            } catch(e) {
-                alert("Failed to reach API.");
-            }
-            setBusyState(false);
-        }
-
-        async function setRegime(mode) {
-            setBusyState(true);
-            try {
-                const res = await fetch(`${API_BASE}/dataset_mode/${currentAsset}?mode=${mode}`, { method: 'POST' });
-                const data = await res.json();
-                if (!res.ok) {
-                    alert(data.detail || "Failed to switch regime.");
-                } else {
-                    await fetchStatus();
-                }
-            } catch(e) {
-                alert("Failed to reach API.");
-            }
-            setBusyState(false);
-        }
-
-        function switchAsset(asset) {
-            currentAsset = asset;
-            document.getElementById('btn-gold').classList.remove('active');
-            document.getElementById('btn-silver').classList.remove('active');
-            document.getElementById('btn-' + asset).classList.add('active');
-            fetchStatus();
-        }
-
-        function renderDiagnosticLogs(logs) {
+        function renderLogs(logs) {
             const container = document.getElementById('console-logs');
-            console.log("Terminal Sync: Received " + (logs ? logs.length : 0) + " logs. Clearing terminal.");
-            container.innerHTML = ''; 
-            if (!logs || logs.length === 0) return;
-            
+            container.innerHTML = '';
+            document.getElementById('log-count').innerText = `${logs.length} SAMPLES`;
+
             logs.forEach(log => {
                 const line = document.createElement('div');
                 line.className = 'log-line';
+                const tagClass = log.hit ? 'success' : 'error';
+                const tagText = log.hit ? 'SUCCESS' : 'DIVERGE';
                 
-                let tag = 'INFO';
-                let tagClass = 'info';
-                
-                if (log.is_flush) {
-                    tag = 'SHADOW FLUSH';
-                    tagClass = 'flush'; // We'll add this CSS
-                } else if (!log.hit) {
-                    tag = 'ERROR';
-                    tagClass = 'error';
-                } else if (log.mag_err > 0.5) {
-                    tag = 'WARN';
-                    tagClass = 'warn';
-                } else {
-                    tag = 'SUCCESS';
-                    tagClass = 'success';
-                }
-                
+                // Use rolling metrics which are now provided by the API
+                const rmse = log.rolling_rmse !== undefined ? log.rolling_rmse.toFixed(2) : '--';
+                const mae = log.rolling_mae !== undefined ? log.rolling_mae.toFixed(2) : '--';
+                const r2 = log.rolling_r2 !== undefined ? log.rolling_r2.toFixed(3) : '--';
+                const delta = Math.abs(log.actual_price - log.pred_price).toFixed(2);
+
                 line.innerHTML = `
-                    <span class="log-time">[${log.date}]</span>
-                    <span class="log-tag ${tagClass}">${tag}</span>
-                    <span class="log-msg">Loss: ${log.loss.toFixed(6)} | R²: ${log.r2 !== undefined && log.r2 !== -1 ? log.r2.toFixed(3) : '--'} | Shadow: ${(log.shadow || 0).toFixed(2)} | Scale: ${(log.confidence || 0.6).toFixed(2)}x | Pred: ${(log.pred_ret*100).toFixed(2)}% | MagErr: ${(log.mag_err*100).toFixed(1)}%</span>
+                    <span class="log-date">[${log.date}]</span>
+                    <span class="log-tag ${tagClass}">${tagText}</span>
+                    <span class="log-msg">Δ $${delta} | (Rolling 20D) RMSE: ${rmse} | MAE: ${mae} | R²: ${r2}</span>
                 `;
                 container.appendChild(line);
             });
             container.scrollTop = container.scrollHeight;
         }
 
+        function updateChart(history, forecastDate, forecastPrice) {
+            const labels = history.map(h => h.date);
+            const actuals = history.map(h => h.actual);
+            const preds = history.map(h => h.predicted);
+
+            // Add the "Future" forecast (the point for tomorrow)
+            labels.push(forecastDate);
+            actuals.push(null);
+            preds.push(forecastPrice);
+
+            // "Fit" logic: Show the full simulation history instead of a sliding window
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = actuals;
+            chart.data.datasets[1].data = preds;
+            
+            // Optimize X-axis for growing data
+            chart.options.scales.x.ticks.maxTicksLimit = 15;
+            
+            chart.update('none'); // Soft update for better performance
+        }
+
+        async function nextDay() {
+            const btn = document.getElementById('next-btn');
+            btn.disabled = true;
+            await fetch(`${API_BASE}/next_day/${currentAsset}`, { method: 'POST' });
+            await fetchStatus();
+            btn.disabled = false;
+        }
+
+        async function setRegime(mode) {
+            await fetch(`${API_BASE}/dataset_mode/${currentAsset}?mode=${mode}`, { method: 'POST' });
+            await fetchStatus();
+        }
+
+        async function switchAsset(asset) {
+            currentAsset = asset;
+            document.getElementById('btn-gold').classList.toggle('active', asset === 'gold');
+            document.getElementById('btn-silver').classList.toggle('active', asset === 'silver');
+            await fetchStatus();
+        }
+
+        async function setSimulationDate() {
+            const date = document.getElementById('date-picker').value;
+            const terminal = document.getElementById('console-logs');
+            
+            // Show Loading State
+            terminal.innerHTML = `<div class="log-entry" style="color: #00F5FF; font-weight: bold;">[SYSTEM] INITIALIZING FORENSIC JUMP TO ${date}...</div>
+                                  <div class="log-entry">[SYSTEM] RE-SIMULATING MARKET DATA & MODEL ADAPTATION...</div>`;
+            
+            try {
+                const response = await fetch(`${API_BASE}/current_date/${currentAsset}?date=${date}`, { method: 'POST' });
+                if (!response.ok) throw new Error("Jump Failed");
+                await fetchStatus();
+            } catch (err) {
+                terminal.innerHTML += `<div class="log-entry" style="color: #ff4d4d;">[ERROR] SIMULATION JUMP FAILED: ${err.message}</div>`;
+            }
+        }
+
+        initChart();
         fetchStatus();
     </script>
 </body>
