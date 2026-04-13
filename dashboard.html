@@ -457,13 +457,60 @@
                 flex-direction: column;
             }
 
-            .date-input,
-            .btn-secondary,
-            .btn-next {
-                width: 100%;
-                max-width: 340px;
+            #historyChart {
+                height: 300px;
             }
         }
+
+        /* Diagnostic Console Styling */
+        .diagnostic-console {
+            margin-top: 2rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 0.5rem;
+        }
+        .console-header h3 {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .console-viewport {
+            height: 250px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: #c9d1d9;
+            padding: 0.5rem;
+            scrollbar-width: thin;
+            scrollbar-color: #30363d #0d1117;
+        }
+        .log-line {
+            margin-bottom: 0.4rem;
+            display: flex;
+            gap: 1rem;
+        }
+        .log-time { color: #8b949e; flex-shrink: 0; }
+        .log-tag { font-weight: 700; flex-shrink: 0; min-width: 80px; }
+        .log-tag.success { color: #3fb950; }
+        .log-tag.error { color: #f85149; }
+        .log-tag.warn { color: #d29922; }
+        .log-tag.info { color: #58a6ff; }
+        .log-tag.flush { color: #bf91ff; }
+        .log-msg { color: #c9d1d9; word-break: break-all; }
 
     </style>
 </head>
@@ -597,6 +644,21 @@
             </div>
             <canvas id="historyChart"></canvas>
         </div>
+
+        <!-- Diagnostic Console -->
+        <div class="diagnostic-console">
+            <div class="console-header">
+                <h3>System Diagnostic Terminal</h3>
+                <span style="font-size: 0.7rem; color: #8b949e;">AUTOSCROLL: ON | ENGINE: V1.1</span>
+            </div>
+            <div class="console-viewport" id="console-logs">
+                <div class="log-line">
+                    <span class="log-time">[INITIALIZING]</span>
+                    <span class="log-tag info">INFO</span>
+                    <span class="log-msg">Connecting to forecasting engine... Waiting for first simulation day.</span>
+                </div>
+            </div>
+        </div>
         
         <div class="history-table-container">
             <h3>Historical Prediction Log</h3>
@@ -712,16 +774,12 @@
             let predictedSeries = [];
 
             if (historyLog && historyLog.length > 0) {
-                // The log from the API places newest at index 0. We reverse it for chronologically correct plotting.
                 const chronoLog = [...historyLog].reverse();
                 labels = chronoLog.map(r => r.date);
                 actualSeries = chronoLog.map(r => r.actual);
                 predictedSeries = chronoLog.map(r => r.predicted);
             }
 
-            // Keep the chart current by appending the active forecast target date.
-            // We render pending forecast as a separate point so historical comparison
-            // (actual vs predicted) stays visually consistent and date-aligned.
             let pendingSeries = new Array(labels.length).fill(null);
             if (forecastDate && forecastPred !== null && forecastPred !== undefined) {
                 let pendingIdx = labels.indexOf(forecastDate);
@@ -734,13 +792,6 @@
                 } else {
                     pendingSeries[pendingIdx] = forecastPred;
                 }
-
-                if (pendingIdx >= pendingSeries.length) {
-                    pendingSeries = new Array(labels.length).fill(null);
-                    pendingSeries[pendingIdx] = forecastPred;
-                }
-            } else {
-                pendingSeries = new Array(labels.length).fill(null);
             }
 
             mainChart.data.labels = labels;
@@ -794,7 +845,7 @@
                 
                 document.getElementById('metric-rmse').innerText = data.rolling_rmse !== null ? `$${data.rolling_rmse}` : '--';
                 document.getElementById('metric-r2').innerText = data.rolling_r2 !== null ? data.rolling_r2 : '--';
-                const dirAcc = data.rolling_dir_acc;
+                const dirAcc = data.rolling_dir_acc;
                 const dirAccEl = document.getElementById('metric-dir-acc');
                 if (dirAcc !== null && dirAcc !== undefined) {
                     const pct = (dirAcc * 100).toFixed(1);
@@ -805,7 +856,6 @@
                     dirAccEl.style.color = '';
                 }
 
-                
                 const split = data.data_split || {};
                 let modelLabel = data.dataset_label || '--';
                 if (data.model_seed !== null && data.model_seed !== undefined) {
@@ -821,12 +871,10 @@
                 }
                 document.getElementById('asset-model-label').innerText = modelLabel;
                 
-                // Sync Regime UI
                 const mode = data.dataset_mode || 'lively';
                 document.getElementById('regime-lively').classList.toggle('active', mode === 'lively');
                 document.getElementById('regime-standard').classList.toggle('active', mode === 'standard');
 
-                // Overall Chart Stats
                 document.getElementById('overall-rmse').innerText = data.overall_rmse !== null ? `$${data.overall_rmse}` : '--';
                 document.getElementById('overall-r2').innerText = data.overall_r2 !== null ? data.overall_r2 : '--';
                 if (data.overall_dir_acc !== null) {
@@ -868,6 +916,10 @@
                     data.predicted_price
                 );
                 
+                if (data.diagnostic_logs) {
+                    renderDiagnosticLogs(data.diagnostic_logs);
+                }
+                
             } catch(e) {
                 console.error(e);
             }
@@ -906,9 +958,6 @@
                     alert(data.detail || 'Failed to align the dashboard to today.');
                     return;
                 }
-                if (data.message) {
-                    console.log(data.message);
-                }
                 await fetchStatus();
             } catch (e) {
                 alert('Failed to reach API.');
@@ -935,8 +984,6 @@
                 if (!res.ok) {
                     alert(data.detail || "Failed to switch regime.");
                 } else {
-                    document.getElementById('regime-lively').classList.toggle('active', mode === 'lively');
-                    document.getElementById('regime-standard').classList.toggle('active', mode === 'standard');
                     await fetchStatus();
                 }
             } catch(e) {
@@ -950,11 +997,46 @@
             document.getElementById('btn-gold').classList.remove('active');
             document.getElementById('btn-silver').classList.remove('active');
             document.getElementById('btn-' + asset).classList.add('active');
-            
             fetchStatus();
         }
 
-        // Init
+        function renderDiagnosticLogs(logs) {
+            const container = document.getElementById('console-logs');
+            console.log("Terminal Sync: Received " + (logs ? logs.length : 0) + " logs. Clearing terminal.");
+            container.innerHTML = ''; 
+            if (!logs || logs.length === 0) return;
+            
+            logs.forEach(log => {
+                const line = document.createElement('div');
+                line.className = 'log-line';
+                
+                let tag = 'INFO';
+                let tagClass = 'info';
+                
+                if (log.is_flush) {
+                    tag = 'SHADOW FLUSH';
+                    tagClass = 'flush'; // We'll add this CSS
+                } else if (!log.hit) {
+                    tag = 'ERROR';
+                    tagClass = 'error';
+                } else if (log.mag_err > 0.5) {
+                    tag = 'WARN';
+                    tagClass = 'warn';
+                } else {
+                    tag = 'SUCCESS';
+                    tagClass = 'success';
+                }
+                
+                line.innerHTML = `
+                    <span class="log-time">[${log.date}]</span>
+                    <span class="log-tag ${tagClass}">${tag}</span>
+                    <span class="log-msg">Loss: ${log.loss.toFixed(6)} | R²: ${log.r2 !== undefined && log.r2 !== -1 ? log.r2.toFixed(3) : '--'} | Shadow: ${(log.shadow || 0).toFixed(2)} | Scale: ${(log.confidence || 0.6).toFixed(2)}x | Pred: ${(log.pred_ret*100).toFixed(2)}% | MagErr: ${(log.mag_err*100).toFixed(1)}%</span>
+                `;
+                container.appendChild(line);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
         fetchStatus();
     </script>
 </body>
