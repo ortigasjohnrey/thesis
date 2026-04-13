@@ -18,6 +18,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
 import optuna
 from optuna.samplers import TPESampler
+from technical_indicators import calculate_indicators
 
 # =============================================================================
 # 1) CONFIGURATION & LOGGING
@@ -77,15 +78,25 @@ def load_and_preprocess(train_path, test_path, target_col):
     numeric_cols = [c for c in df_train.columns if c != DATE_COL]
     logging.info(f"Using strictly features: {numeric_cols}")
 
-    def get_returns(df):
-        # pct_change() on all numeric cols, handle inf
-        ret_df = df[numeric_cols].pct_change().replace([np.inf, -np.inf], 0).dropna()
+    def get_features_and_target(df):
+        # 1. Calculate Technical Indicators on the level price
+        df_with_inds = calculate_indicators(df, target_col)
+        
+        # 2. Calculate Returns on all numeric columns
+        ret_df = df_with_inds[numeric_cols].pct_change().replace([np.inf, -np.inf], 0)
+        
+        # 3. Add Version 8 'Flash' technical indicators
+        tech_cols = ['EMA_Fast', 'EMA_Slow', 'RSI_7', 'MACD_Flash', 'MACD_Signal', 'MACD_Hist', 'BB_Width', 'ROC_2']
+        for col in tech_cols:
+            ret_df[col] = df_with_inds[col]
+            
+        ret_df = ret_df.dropna()
         # The target for row 't' is the return at 't+1'
         ret_df['target'] = ret_df[target_col].shift(-1)
         return ret_df.dropna()
 
-    train_rets = get_returns(df_train)
-    test_rets = get_returns(df_test)
+    train_rets = get_features_and_target(df_train)
+    test_rets = get_features_and_target(df_test)
     
     feature_cols = [c for c in train_rets.columns if c != 'target']
     
@@ -177,7 +188,7 @@ class CNN_BiLSTM(nn.Module):
 # 4) LOSS FUNCTION (ANTI-LAZINESS)
 # =============================================================================
 class ProactiveDirectionalLoss(nn.Module):
-    def __init__(self, hinge_weight=30.0, anti_lag_weight=20.0, spread_weight=15.0):
+    def __init__(self, hinge_weight=40.0, anti_lag_weight=20.0, spread_weight=15.0):
         super().__init__()
         self.huber = nn.HuberLoss()
         self.hinge_weight = hinge_weight
@@ -189,9 +200,16 @@ class ProactiveDirectionalLoss(nn.Module):
         target_sign = torch.sign(target)
         loss_hinge = torch.mean(torch.relu(0.5 - pred * target_sign))
         loss_anti_lag = torch.mean(torch.relu(0.2 - torch.abs(pred)))
-        pred_std = torch.std(pred) + 1e-6
-        target_std = torch.std(target) + 1e-6
-        loss_spread = torch.relu(target_std / pred_std - 1.0)
+        
+        # Stability: Handle zero-variance batches to prevent NaN
+        pred_std = torch.std(pred) if pred.size(0) > 1 else torch.zeros(1).to(pred.device)
+        target_std = torch.std(target) if target.size(0) > 1 else torch.zeros(1).to(target.device)
+        
+        if pred_std > 1e-4:
+            loss_spread = torch.relu(target_std / pred_std - 1.0)
+        else:
+            loss_spread = torch.zeros(1).to(pred.device)
+            
         return loss_huber + self.hinge_weight*loss_hinge + self.anti_lag_weight*loss_anti_lag + self.spread_weight*loss_spread
 
 # =============================================================================

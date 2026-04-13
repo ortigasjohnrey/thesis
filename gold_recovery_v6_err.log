@@ -1,0 +1,47 @@
+2026-04-13 07:11:12,019 [INFO] Starting Full Gold Training Pipeline...
+2026-04-13 07:11:12,020 [INFO] Loading datasets from df_gold_dataset_gepu_extended_train.csv and df_gold_dataset_gepu_extended_test.csv
+2026-04-13 07:11:12,030 [INFO] Using strictly features: ['Silver_Futures', 'Crude_Oil_Futures', 'UST10Y_Treasury_Yield', 'gepu', 'DFF', 'gpr_daily', 'Gold_Futures']
+2026-04-13 07:11:12,038 [INFO] Loading existing best params from models/gold_RRL_interpolate\best_params.json...
+2026-04-13 07:11:12,155 [INFO] Final Training Seed 0...
+2026-04-13 07:12:24,132 [INFO] Seed 0 | Epoch 50 | Test Loss 22.5381
+2026-04-13 07:12:24,238 [INFO] Seed 0 | Epoch 50 | Test Loss 22.5381
+2026-04-13 07:13:35,269 [INFO] Seed 0 | Epoch 100 | Test Loss 16.3451
+2026-04-13 07:13:35,369 [INFO] Seed 0 | Epoch 100 | Test Loss 16.3451
+2026-04-13 07:14:47,368 [INFO] Seed 0 | Epoch 150 | Test Loss 15.5230
+2026-04-13 07:14:47,467 [INFO] Seed 0 | Epoch 150 | Test Loss 15.5230
+2026-04-13 07:14:47,575 [INFO] Final Training Seed 1...
+2026-04-13 07:15:58,709 [INFO] Seed 1 | Epoch 50 | Test Loss 25.3579
+2026-04-13 07:15:58,815 [INFO] Seed 1 | Epoch 50 | Test Loss 25.3579
+2026-04-13 07:17:09,303 [INFO] Seed 1 | Epoch 100 | Test Loss 23.5763
+2026-04-13 07:17:09,402 [INFO] Seed 1 | Epoch 100 | Test Loss 23.5763
+2026-04-13 07:18:20,032 [INFO] Seed 1 | Epoch 150 | Test Loss 23.6168
+2026-04-13 07:18:20,132 [INFO] Seed 1 | Epoch 150 | Test Loss 23.6168
+2026-04-13 07:18:20,251 [INFO] Final Training Seed 2...
+2026-04-13 07:19:32,428 [INFO] Seed 2 | Epoch 50 | Test Loss 35.8625
+2026-04-13 07:19:32,527 [INFO] Seed 2 | Epoch 50 | Test Loss 35.8625
+2026-04-13 07:20:45,730 [INFO] Seed 2 | Epoch 100 | Test Loss 40.3537
+2026-04-13 07:20:45,828 [INFO] Seed 2 | Epoch 100 | Test Loss 40.3537
+2026-04-13 07:21:57,906 [INFO] Seed 2 | Epoch 150 | Test Loss 39.5064
+2026-04-13 07:21:58,008 [INFO] Seed 2 | Epoch 150 | Test Loss 39.5064
+2026-04-13 07:21:58,118 [INFO] Final Training Seed 42...
+2026-04-13 07:23:09,705 [INFO] Seed 42 | Epoch 50 | Test Loss 67.2446
+2026-04-13 07:23:09,804 [INFO] Seed 42 | Epoch 50 | Test Loss 67.2446
+2026-04-13 07:24:20,865 [INFO] Seed 42 | Epoch 100 | Test Loss 38.1089
+2026-04-13 07:24:20,974 [INFO] Seed 42 | Epoch 100 | Test Loss 38.1089
+2026-04-13 07:25:32,165 [INFO] Seed 42 | Epoch 150 | Test Loss 39.2572
+2026-04-13 07:25:32,269 [INFO] Seed 42 | Epoch 150 | Test Loss 39.2572
+2026-04-13 07:25:32,375 [INFO] Final Training Seed 99...
+2026-04-13 07:26:43,772 [INFO] Seed 99 | Epoch 50 | Test Loss 26.3003
+2026-04-13 07:26:43,873 [INFO] Seed 99 | Epoch 50 | Test Loss 26.3003
+2026-04-13 07:27:33,726 [INFO] Seed 99 | Epoch 100 | Test Loss 13.7709
+2026-04-13 07:27:33,765 [INFO] Seed 99 | Epoch 100 | Test Loss 13.7709
+2026-04-13 07:28:06,936 [INFO] Seed 99 | Epoch 150 | Test Loss 13.3539
+2026-04-13 07:28:06,976 [INFO] Seed 99 | Epoch 150 | Test Loss 13.3539
+2026-04-13 07:28:07,020 [INFO] Final Training Seed 123...
+2026-04-13 07:28:40,680 [INFO] Seed 123 | Epoch 50 | Test Loss 28.3798
+2026-04-13 07:28:40,718 [INFO] Seed 123 | Epoch 50 | Test Loss 28.3798
+2026-04-13 07:29:16,393 [INFO] Seed 123 | Epoch 100 | Test Loss 34.5869
+2026-04-13 07:29:16,436 [INFO] Seed 123 | Epoch 100 | Test Loss 34.5869
+2026-04-13 07:29:51,725 [INFO] Seed 123 | Epoch 150 | Test Loss 31.3309
+2026-04-13 07:29:51,764 [INFO] Seed 123 | Epoch 150 | Test Loss 31.3309
+2026-04-13 07:29:51,812 [INFO] FINAL RESULTS (GOLD): DA=53.67%, RMSE=47.6262, LagCorr=-0.0027

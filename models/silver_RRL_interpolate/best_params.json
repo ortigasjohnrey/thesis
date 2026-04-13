@@ -1,0 +1,9 @@
+{
+    "lookback": 22,
+    "filters": 58,
+    "lstm_units": 110,
+    "dropout": 0.318,
+    "lr": 0.0002,
+    "kernel_size": 3,
+    "batch_size": 64
+}

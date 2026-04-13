@@ -11,8 +11,10 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sklearn.metrics import mean_squared_error, r2_score
+from copy import deepcopy
+from technical_indicators import calculate_indicators, calculate_indicators_v7
 
-app = FastAPI(title="Forecasting Simulation API")
+app = FastAPI(title="Rapid-Pivot Forecasting Simulation API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,9 +25,8 @@ app.add_middleware(
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# --- SCALER DEFINITION (must match training script so pickle can deserialize) ---
+# --- SCALER DEFINITION ---
 class BasisPointScaler:
-    """Scales returns to basis-point space: x_scaled = x_raw * scale."""
     def __init__(self, scale=1000.0):
         self.scale = scale
     def fit_transform(self, x):
@@ -35,33 +36,64 @@ class BasisPointScaler:
     def inverse_transform(self, x):
         return x / self.scale
 
+# --- LOSS FUNCTION ---
+class ProactiveDirectionalLoss(nn.Module):
+    def __init__(self, hinge_weight=30.0, anti_lag_weight=20.0, spread_weight=15.0):
+        super().__init__()
+        self.huber = nn.HuberLoss()
+        self.hinge_weight = hinge_weight
+        self.anti_lag_weight = anti_lag_weight
+        self.spread_weight = spread_weight
+        
+    def forward(self, pred, target):
+        loss_huber = self.huber(pred, target)
+        target_sign = torch.sign(target)
+        loss_hinge = torch.mean(torch.relu(0.5 - pred * target_sign))
+        loss_anti_lag = torch.mean(torch.relu(0.2 - torch.abs(pred)))
+        
+        # Stability: Handle zero-variance batches to prevent NaN
+        pred_std = torch.std(pred) if pred.size(0) > 1 else torch.zeros(1).to(pred.device)
+        target_std = torch.std(target) if target.size(0) > 1 else torch.zeros(1).to(target.device)
+        
+        if pred_std > 1e-4:
+            loss_spread = torch.relu(target_std / pred_std - 1.0)
+        else:
+            loss_spread = torch.zeros(1).to(pred.device)
+            
+        return loss_huber + self.hinge_weight*loss_hinge + self.anti_lag_weight*loss_anti_lag + self.spread_weight*loss_spread
+
 # --- MODEL DEFINITION ---
+class SelfAttention(nn.Module):
+    def __init__(self, hidden_dim):
+        super(SelfAttention, self).__init__()
+        self.query = nn.Linear(hidden_dim * 2, hidden_dim * 2)
+        self.key = nn.Linear(hidden_dim * 2, hidden_dim * 2)
+        self.value = nn.Linear(hidden_dim * 2, hidden_dim * 2)
+        self.softmax = nn.Softmax(dim=1)
+    def forward(self, x):
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+        scores = torch.bmm(q, k.transpose(1, 2)) / (np.sqrt(q.size(-1)) + 1e-6)
+        attn_output = torch.bmm(self.softmax(scores), v)
+        return attn_output, None
+
 class CNN_BiLSTM(nn.Module):
     def __init__(self, input_dim, hidden_dim=128, filters=64, kernel_size=3, n_layers=2, dropout=0.3):
         super(CNN_BiLSTM, self).__init__()
         self.conv1 = nn.Conv1d(input_dim, filters, kernel_size=kernel_size, padding=kernel_size//2)
         self.bn1 = nn.BatchNorm1d(filters)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(dropout)
+        self.relu, self.dropout = nn.ReLU(), nn.Dropout(dropout)
         self.lstm = nn.LSTM(filters, hidden_dim, n_layers, batch_first=True, bidirectional=True, dropout=dropout)
-        self.fc = nn.Linear(hidden_dim * 2, 64)
-        self.out = nn.Linear(64, 1)
-
+        self.attention = SelfAttention(hidden_dim)
+        self.fc, self.out = nn.Linear(hidden_dim * 2, 64), nn.Linear(64, 1)
     def forward(self, x):
-        x = x.transpose(1, 2)
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.dropout(x)
-        x = x.transpose(1, 2)
+        x = self.dropout(self.relu(self.bn1(self.conv1(x.transpose(1, 2)))).transpose(1, 2))
         x, _ = self.lstm(x)
-        x = x[:, -1, :]
-        x = self.fc(x)
-        x = self.relu(x)
-        x = self.out(x)
-        return x
+        attn_out, _ = self.attention(x)
+        return self.out(self.relu(self.fc(torch.mean(attn_out, dim=1))))
 
-# --- STATE AND CONFIG ---
+# --- ASSET CONFIG ---
 ASSET_CONFIG = {
     "gold": {
         "train_csv": "df_gold_dataset_gepu_extended_train.csv",
@@ -70,8 +102,9 @@ ASSET_CONFIG = {
         "model_dir": "models/gold_RRL_interpolate",
         "seeds": [0, 1, 2, 42, 99, 123],
         "target_col": "Gold_Futures",
-        "dataset_label": "Gold CNN-BiLSTM Optuna Ensemble (Anti-Laziness)",
-        "features": ['Silver_Futures', 'Crude_Oil_Futures', 'UST10Y_Treasury_Yield', 'gepu', 'DFF', 'gpr_daily', 'Gold_Futures']
+        "dataset_label": "Gold Rapid-Pivot Engine (Reactive Learning)",
+        "features": ['Silver_Futures', 'Crude_Oil_Futures', 'UST10Y_Treasury_Yield', 'gepu', 'DFF', 'gpr_daily', 'Gold_Futures'],
+        "tech_cols": ['EMA_Fast', 'EMA_Slow', 'RSI_7', 'MACD_Flash', 'MACD_Signal', 'MACD_Hist', 'BB_Width', 'ROC_2']
     },
     "silver": {
         "train_csv": "silver_RRL_interpolate_extended_train.csv",
@@ -80,16 +113,26 @@ ASSET_CONFIG = {
         "model_dir": "models/silver_RRL_interpolate",
         "seeds": [0, 1, 2, 42, 99, 123],
         "target_col": "Silver_Futures",
-        "dataset_label": "Silver CNN-BiLSTM Optuna Ensemble (Anti-Laziness)",
-        "features": ['Silver_Futures', 'Gold_Futures', 'US30', 'SnP500', 'NASDAQ_100', 'USD_index']
+        "dataset_label": "Silver Rapid-Pivot Engine (Reactive Learning)",
+        "features": ['Silver_Futures', 'Gold_Futures', 'US30', 'SnP500', 'NASDAQ_100', 'USD_index'],
+        "tech_cols": ['EMA_10', 'EMA_20', 'RSI_14', 'MACD', 'MACD_Signal', 'MACD_Hist', 'BB_Width', 'ROC_5']
     }
 }
 
 STATE_FILE = "simulation_state.json"
-
 state = {
-    "gold": {"test_idx": 0, "models": [], "x_scaler": None, "y_scaler": None, "feature_cols": None, "lookback": None, "params": None, "current_date": None, "history": {}, "data_split": None, "model_seeds": None, "test_df": None, "forecast_rows": None},
-    "silver": {"test_idx": 0, "models": [], "x_scaler": None, "y_scaler": None, "feature_cols": None, "lookback": None, "params": None, "current_date": None, "history": {}, "data_split": None, "model_seeds": None, "test_df": None, "forecast_rows": None}
+    "gold": {
+        "test_idx": 0, "models": [], "base_weights": [], "x_scaler": None, "y_scaler": None, 
+        "lookback": None, "params": None, "current_date": None, "history": {}, 
+        "seed_errors": {s: [] for s in [0, 1, 2, 42, 99, 123]}, 
+        "data_split": None, "test_df": None, "train_df": None, "forecast_rows": None
+    },
+    "silver": {
+        "test_idx": 0, "models": [], "base_weights": [], "x_scaler": None, "y_scaler": None, 
+        "lookback": None, "params": None, "current_date": None, "history": {}, 
+        "seed_errors": {s: [] for s in [0, 1, 2, 42, 99, 123]},
+        "data_split": None, "test_df": None, "train_df": None, "forecast_rows": None
+    }
 }
 
 def save_runtime_state():
@@ -98,535 +141,302 @@ def save_runtime_state():
         payload[asset] = {
             "test_idx": int(st["test_idx"]),
             "current_date": st["current_date"].isoformat() if st["current_date"] else None,
+            "seed_errors": {str(k): [float(v) for v in l] for k,l in st["seed_errors"].items()},
             "history": {date_key: float(pred) for date_key, pred in st["history"].items()}
         }
-
-    temp_path = f"{STATE_FILE}.tmp"
-    with open(temp_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
-    os.replace(temp_path, STATE_FILE)
-
-def get_reference_today(asset=None):
-    override = os.getenv("SIMULATION_TODAY")
-    if override:
-        try:
-            return datetime.date.fromisoformat(override)
-        except ValueError:
-            pass
-    if asset:
-        data_split = state.get(asset, {}).get("data_split") or {}
-        split_today = data_split.get("requested_train_end_date")
-        if split_today:
-            try:
-                return datetime.date.fromisoformat(split_today)
-            except ValueError:
-                pass
-    return datetime.date.today()
-
-def clamp_date_to_window(selected_date, min_date, max_date):
-    if selected_date < min_date:
-        return min_date
-    if selected_date > max_date:
-        return max_date
-    return selected_date
+    with open(STATE_FILE, "w", encoding="utf-8") as f: json.dump(payload, f, indent=2)
 
 def set_simulation_date_state(asset, selected_date):
     st = state[asset]
-    test_df = get_test_dates(asset)
-
+    test_df = st["test_df"]
+    old_test_idx = st["test_idx"]
     new_test_idx = int((test_df["Date_obj"] < selected_date).sum())
+    if new_test_idx < old_test_idx:
+        reset_models_to_base(asset)
+        st["seed_errors"] = {s: [] for s in st["seed_errors"]}
+        replay_training_range(asset, 0, new_test_idx)
+    elif new_test_idx > old_test_idx:
+        replay_training_range(asset, old_test_idx, new_test_idx)
     st["current_date"] = selected_date
     st["test_idx"] = new_test_idx
-    st["history"] = {
-        logged_date: pred
-        for logged_date, pred in st["history"].items()
-        if datetime.date.fromisoformat(logged_date) < selected_date
-    }
+    st["history"] = {d:p for d,p in st["history"].items() if datetime.date.fromisoformat(d) < selected_date}
     save_runtime_state()
+    return {"status": "success", "day": st["test_idx"]}
 
-    return {
-        "current_date": str(st["current_date"]),
-        "simulation_day": st["test_idx"]
-    }
+def reset_models_to_base(asset):
+    st = state[asset]
+    for i, model in enumerate(st["models"]): model.load_state_dict(st["base_weights"][i])
 
-def load_level_frame(csv_path):
-    df = pd.read_csv(csv_path)
-    if "Date" in df.columns:
-        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-        df = df.dropna(subset=["Date"]).sort_values("Date").reset_index(drop=True)
-        df["Date_obj"] = df["Date"].dt.date
-    return df
+def replay_training_range(asset, start_idx, end_idx):
+    for i in range(start_idx, end_idx): retrain_on_revealed_day(asset, i)
 
-def predict_from_context_frame(asset, context_df):
-    """
-    Build a one-step-ahead price prediction from the given context window.
-    Strictly follows the return-based transformation and feature set from training.
-    """
+def retrain_on_revealed_day(asset, day_idx):
     config = ASSET_CONFIG[asset]
     st = state[asset]
-    target_col = config["target_col"]
-    feature_cols = config["features"]
-
-    # --- Step 1: Anchor price ---
-    abs_last_price = float(context_df[target_col].iloc[-1])
-    last_date = context_df.iloc[-1]["Date"].strftime("%Y-%m-%d")
-
-    # --- Step 2: Compute Returns accurately ---
-    # Only keep the columns we need
-    numeric_df = context_df[feature_cols].copy()
-    # Force numeric
-    for c in feature_cols:
-        numeric_df[c] = pd.to_numeric(numeric_df[c], errors="coerce")
-    
-    returns_df = numeric_df.pct_change().replace([np.inf, -np.inf], 0).dropna()
-
+    total_df = pd.concat([st["train_df"], st["test_df"].iloc[:day_idx+1]], ignore_index=True)
     lookback = st["lookback"]
-    if len(returns_df) < lookback:
-        return {"error": f"Not enough data (needs {lookback}, has {len(returns_df)})"}
-
-    # --- Step 3: Scale and Infer with Ensemble ---
-    recent_returns = returns_df[feature_cols].iloc[-lookback:].copy()
-    recent_scaled = st["x_scaler"].transform(recent_returns)
-    recent_tensor = torch.tensor(recent_scaled, dtype=torch.float32).unsqueeze(0).to(device)
-
-    all_preds = []
-    for model in st["models"]:
-        with torch.no_grad():
-            pred_scaled = model(recent_tensor).cpu().numpy().reshape(-1, 1)
-            all_preds.append(pred_scaled)
     
-    avg_pred_scaled = np.mean(all_preds, axis=0)
-    pred_return = st["y_scaler"].inverse_transform(avg_pred_scaled).item()
-    pred_abs = abs_last_price * (1.0 + pred_return)
+    # 1. Capture Ground Truth
+    actual_price = float(st["test_df"].iloc[day_idx][config["target_col"]])
+    prev_price = float(total_df.iloc[-2][config["target_col"]])
+    actual_return = (actual_price - prev_price) / (prev_price + 1e-8)
+    
+    # 2. Update Adaptive Bayesian Memory (3-day window)
+    if asset == "gold":
+        full_df_inds = calculate_indicators(total_df, config["target_col"])
+    else:
+        full_df_inds = calculate_indicators_v7(total_df, config["target_col"])
+    
+    numeric_df_context = full_df_inds[config["features"]].iloc[-lookback-1:-1].copy()
+    for c in config["features"]: numeric_df_context[c] = pd.to_numeric(numeric_df_context[c], errors='coerce')
+    returns_df_context = numeric_df_context.pct_change().dropna()
+    
+    # Append latest indicators
+    for col in config["tech_cols"]:
+        returns_df_context[col] = full_df_inds[col].iloc[-lookback-1:-1]
 
-    return {
-        "predicted_price": round(float(pred_abs), 2),
-        "last_train_date": last_date,
-        "last_train_price": round(abs_last_price, 2),
-    }
+    all_features = config["features"] + config["tech_cols"]
+    
+    ensemble_hit = True
+    if len(returns_df_context) >= lookback:
+        X_s = st["x_scaler"].transform(returns_df_context[all_features])
+        X_t = torch.tensor(X_s, dtype=torch.float32).unsqueeze(0).to(device)
+        with torch.no_grad():
+            seed_preds = []
+            for i, model in enumerate(st["models"]):
+                seed = config["seeds"][i]
+                p_s = model(X_t).cpu().numpy().item()
+                p_r = st["y_scaler"].inverse_transform(np.array([[p_s]])).item()
+                err = abs(actual_return - p_r)
+                st["seed_errors"][seed].append(err)
+                if len(st["seed_errors"][seed]) > 3: st["seed_errors"][seed].pop(0)
+                seed_preds.append(p_r)
+            
+            # Check if ensemble was correct directionally
+            avg_pred_ret = np.mean(seed_preds)
+            if np.sign(avg_pred_ret) != np.sign(actual_return):
+                ensemble_hit = False
 
+    # 3. RAPID-PIVOT RETRAINING
+    # Double epochs if we missed the direction!
+    num_epochs = 4 if not ensemble_hit else 2
+    y_scaled = st["y_scaler"].transform(np.array([[actual_return]])).item()
+    y_t = torch.tensor([[y_scaled]], dtype=torch.float32).to(device)
+    
+    # Get standard context sample
+    X_s = st["x_scaler"].transform(returns_df_context[all_features].iloc[-lookback:])
+    X_t = torch.tensor(X_s, dtype=torch.float32).unsqueeze(0).to(device)
+    criterion = ProactiveDirectionalLoss()
+    
+    for model in st["models"]:
+        model.train()
+        optimizer = torch.optim.Adam(model.parameters(), lr=float(st["params"]["lr"])*0.5)
+        for _ in range(num_epochs):
+            optimizer.zero_grad()
+            loss = criterion(model(X_t), y_t)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+        model.eval()
 
-def build_precomputed_forecasts(asset):
-    """
-    Walk forward through the test set, predicting each test day's price from
-    the context window of all data seen so far, then appending that test row
-    to context before moving to the next step.
-
-    Alignment:
-      - The model is called with context ending at train_day_T.
-      - It predicts price_T+1 = P_T * (1 + r_pred).
-      - test_row at position i IS day T+1 — its `target_col` value IS the
-        actual price we are predicting.
-      - So  actual_price = test_row[target_col]  is correctly aligned with
-            predicted_price from predict_from_context_frame.
-
-    Bug fixed (previously): the date label and actual_price were both taken
-    from the same test_row, but since the context ends ONE step before that
-    test_row, the alignment is in fact correct — actual = P_{t+1}, pred = P^_{t+1}.
-    The real bug was that predict_from_context_frame was using wrong feature cols.
-    """
+def get_adaptive_weights(asset):
+    st = state[asset]
     config = ASSET_CONFIG[asset]
-    train_df = load_level_frame(config["train_csv"])
-    test_df = load_level_frame(config["test_csv"])
-    if test_df.empty:
-        return test_df, []
+    inv_errors = []
+    for seed in config["seeds"]:
+        e_list = st["seed_errors"].get(seed, [])
+        avg_e = np.mean(e_list) if e_list else 1.0
+        inv_errors.append(1.0 / (avg_e + 1e-6))
+    weights = np.array(inv_errors) / np.sum(inv_errors)
+    return weights
 
-    forecast_rows = []
-    context_df = train_df.copy()
+def predict_from_context_frame(asset, context_df):
+    config = ASSET_CONFIG[asset]
+    st = state[asset]
+    lookback = st["lookback"]
+    
+    # 1. Compute Full Context Indicators (Asset Specific)
+    if asset == "gold":
+        full_df_inds = calculate_indicators(context_df, config["target_col"])
+    else:
+        full_df_inds = calculate_indicators_v7(context_df, config["target_col"])
+    
+    abs_last_price = float(context_df[config["target_col"]].iloc[-1])
+    
+    numeric_df = full_df_inds[config["features"]].tail(lookback + 1).copy()
+    for c in config["features"]: numeric_df[c] = pd.to_numeric(numeric_df[c], errors="coerce")
+    returns_df = numeric_df.pct_change().dropna()
+    
+    # Append latest indicators
+    for col in config["tech_cols"]:
+        returns_df[col] = full_df_inds[col].iloc[-lookback:]
 
-    for i in range(len(test_df)):
-        test_row = test_df.iloc[i]
-        pred_info = predict_from_context_frame(asset, context_df)
-        if pred_info.get("error"):
-            raise ValueError(f"Unable to precompute forecasts for {asset}: {pred_info['error']}")
-
-        # actual_price  = P_{t+1}  (today's price, which is what we predicted)
-        # predicted_price = P^_{t+1} (model's prediction of today from yesterday's context)
-        forecast_rows.append(
-            {
-                "date": test_row["Date"].strftime("%Y-%m-%d"),
-                "date_obj": test_row["Date_obj"],
-                "actual_price": round(float(test_row[config["target_col"]]), 2),
-                "predicted_price": pred_info["predicted_price"],
-                "context_end_date": pred_info["last_train_date"],
-                "context_end_price": pred_info["last_train_price"],
-            }
-        )
-
-        # Append current test_row to context; use index slicer to preserve dtypes
-        context_df = pd.concat([context_df, test_df.iloc[[i]]], ignore_index=True)
-        context_df["Date"] = pd.to_datetime(context_df["Date"], errors="coerce")
-
-    return test_df, forecast_rows
-
-def load_runtime_state():
-    if not os.path.exists(STATE_FILE):
-        return
-
-    with open(STATE_FILE, "r", encoding="utf-8") as f:
-        persisted = json.load(f)
-
-    for asset in ASSET_CONFIG:
-        asset_state = persisted.get(asset)
-        if not asset_state:
-            continue
-
-        test_df = get_test_dates(asset)
-        min_date = test_df.iloc[0]["Date_obj"]
-        max_date = test_df.iloc[-1]["Date_obj"]
-        max_restore_date = max_date + datetime.timedelta(days=1)
-
-        current_date_raw = asset_state.get("current_date")
-        try:
-            current_date = datetime.date.fromisoformat(current_date_raw) if current_date_raw else min_date
-        except (TypeError, ValueError):
-            current_date = min_date
-
-        if current_date < min_date:
-            current_date = min_date
-        if current_date > max_restore_date:
-            current_date = max_restore_date
-
-        max_test_idx = len(test_df)
-        try:
-            test_idx = int(asset_state.get("test_idx", 0))
-        except (TypeError, ValueError):
-            test_idx = 0
-        test_idx = max(0, min(test_idx, max_test_idx))
-
-        raw_history = asset_state.get("history", {})
-        cleaned_history = {}
-        if isinstance(raw_history, dict):
-            for logged_date, pred in raw_history.items():
-                try:
-                    logged_date_obj = datetime.date.fromisoformat(logged_date)
-                    pred_value = float(pred)
-                except (TypeError, ValueError):
-                    continue
-                if min_date <= logged_date_obj <= max_date and logged_date_obj < current_date:
-                    cleaned_history[logged_date] = pred_value
-
-        state[asset]["current_date"] = current_date
-        state[asset]["test_idx"] = test_idx
-        state[asset]["history"] = cleaned_history
+    all_features = config["features"] + config["tech_cols"]
+    
+    if len(returns_df) < lookback: return {"error": "Insufficient history"}
+    X_s = st["x_scaler"].transform(returns_df[all_features])
+    X_t = torch.tensor(X_s, dtype=torch.float32).unsqueeze(0).to(device)
+    all_preds = []
+    with torch.no_grad():
+        for model in st["models"]: all_preds.append(model(X_t).cpu().numpy().item())
+    
+    weights = get_adaptive_weights(asset)
+    weighted_scaled_pred = np.average(all_preds, weights=weights)
+    pred_return = st["y_scaler"].inverse_transform(np.array([[weighted_scaled_pred]])).item()
+    return {
+        "predicted_price": round(abs_last_price * (1.0 + pred_return), 2),
+        "last_train_date": context_df.iloc[-1]["Date"].strftime("%Y-%m-%d"),
+        "adaptive_weights": [round(float(w), 3) for w in weights]
+    }
 
 def load_models():
     for asset, config in ASSET_CONFIG.items():
-        # Load best params
-        with open(config["best_params"], "r") as f:
-            params = json.load(f)
-        state[asset]["params"] = params
-        state[asset]["lookback"] = params["lookback"]
-        
-        # Load Scalers
-        with open(os.path.join(config["model_dir"], "scaler_X.pkl"), "rb") as f:
-            state[asset]["x_scaler"] = pickle.load(f)
-        with open(os.path.join(config["model_dir"], "scaler_y.pkl"), "rb") as f:
-            state[asset]["y_scaler"] = pickle.load(f)
-            
-        # Initialize and load all models in the ensemble
+        with open(config["best_params"], "r") as f: params = json.load(f)
+        state[asset].update({"params": params, "lookback": params["lookback"]})
+        with open(os.path.join(config["model_dir"], "scaler_X.pkl"), "rb") as f: state[asset]["x_scaler"] = pickle.load(f)
+        with open(os.path.join(config["model_dir"], "scaler_y.pkl"), "rb") as f: state[asset]["y_scaler"] = pickle.load(f)
         state[asset]["models"] = []
-        input_dim = len(config["features"])
+        state[asset]["base_weights"] = []
+        all_features_count = len(config["features"]) + len(config["tech_cols"])
         for seed in config["seeds"]:
-            model = CNN_BiLSTM(
-                input_dim=input_dim,
-                hidden_dim=params["lstm_units"],
-                filters=params["filters"],
-                kernel_size=params["kernel_size"],
-                dropout=params["dropout"]
-            )
-            model_name = f"{asset}_model_seed_{seed}.pth"
-            model_path = os.path.join(config["model_dir"], model_name)
-            model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
-            model.to(device)
+            model = CNN_BiLSTM(all_features_count, params["lstm_units"], params["filters"], params["kernel_size"]).to(device)
+            model.load_state_dict(torch.load(os.path.join(config["model_dir"], f"{asset}_model_seed_{seed}.pth"), map_location=device, weights_only=True))
             model.eval()
             state[asset]["models"].append(model)
-
-        test_df, forecast_rows = build_precomputed_forecasts(asset)
-        state[asset]["test_df"] = test_df
-        state[asset]["forecast_rows"] = forecast_rows
-
-        train_df = load_level_frame(config["train_csv"])
-        live_split = {
-            "raw_train_rows": int(len(train_df)),
-            "raw_test_rows": int(len(test_df))
-        }
-        if not train_df.empty and "Date_obj" in train_df.columns:
-            live_split["raw_train_last_date"] = str(train_df.iloc[-1]["Date_obj"])
-        if not test_df.empty and "Date_obj" in test_df.columns:
-            live_split["raw_test_first_date"] = str(test_df.iloc[0]["Date_obj"])
-            live_split["raw_test_last_date"] = str(test_df.iloc[-1]["Date_obj"])
-        state[asset]["data_split"] = live_split
-
-        if not test_df.empty and "Date_obj" in test_df.columns:
-            state[asset]["current_date"] = test_df.iloc[0]["Date_obj"]
-
-def predict_next_day(asset):
-    st = state[asset]
-    idx = st["test_idx"]
-    forecast_rows = st.get("forecast_rows") or []
-    if idx >= len(forecast_rows):
-        return {"error": "No cached forecast available"}
-
-    row = forecast_rows[idx]
-    return {
-        "forecast_date": row["date"],
-        "predicted_price": row["predicted_price"],
-        "last_train_date": row["context_end_date"],
-        "last_train_price": row["context_end_price"],
-    }
-
-def get_test_dates(asset):
-    cached_test_df = state[asset].get("test_df")
-    if cached_test_df is not None:
-        return cached_test_df.copy()
-    return load_level_frame(ASSET_CONFIG[asset]["test_csv"])
-
+            state[asset]["base_weights"].append(deepcopy(model.state_dict()))
+        train_df = pd.read_csv(config["train_csv"])
+        test_df = pd.read_csv(config["test_csv"])
+        for df in [train_df, test_df]:
+            df["Date"] = pd.to_datetime(df["Date"])
+            df["Date_obj"] = df["Date"].dt.date
+        state[asset].update({"train_df": train_df, "test_df": test_df, "current_date": test_df.iloc[0]["Date_obj"]})
 
 load_models()
-load_runtime_state()
 
 @app.get("/")
-def get_dashboard():
-    return FileResponse(
-        "dashboard.html",
-        headers={
-            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-            "Pragma": "no-cache",
-            "Expires": "0",
-        },
-    )
-
-@app.get("/dashboard")
-def get_dashboard_alias():
-    return get_dashboard()
+def get_dashboard(): return FileResponse("dashboard.html")
 
 @app.get("/api/status/{asset}")
 def get_status(asset: str):
-    if asset not in ASSET_CONFIG:
-        return {"error": "Invalid asset"}
-    
     config = ASSET_CONFIG[asset]
     st = state[asset]
     idx = st["test_idx"]
-    
-    test_df = get_test_dates(asset)
-    if idx >= len(test_df):
-        return {"error": "Simulation finished, no more test data"}
+    test_df = st["test_df"]
+    train_df = st["train_df"]
 
-    min_date = test_df.iloc[0]["Date_obj"]
-    max_date = test_df.iloc[-1]["Date_obj"]
-    market_date = test_df.iloc[idx]["Date_obj"]
-    current_calendar_date = st["current_date"]
+    if idx >= len(test_df): return {"error": "Finished"}
 
-    reference_today = get_reference_today(asset)
-    effective_today = clamp_date_to_window(reference_today, min_date, max_date)
-    today_alignment_note = None
-    if reference_today < min_date:
-        today_alignment_note = (
-            f"Reference today is {reference_today}. This test window begins on {min_date}, "
-            f"so the dashboard is aligned to {effective_today}."
-        )
-    elif reference_today > max_date:
-        today_alignment_note = (
-            f"Reference today is {reference_today}. This test window ends on {max_date}, "
-            f"so the dashboard is aligned to {effective_today}."
-        )
+    # Build context for prediction
+    context_df = pd.concat([train_df, test_df.iloc[:idx]], ignore_index=True)
+    pred_info = predict_from_context_frame(asset, context_df)
 
-    is_market_day = (current_calendar_date == market_date)
-    
-    forecast_rows = st.get("forecast_rows") or []
-    pred_info = predict_next_day(asset)
-    
-    # -----------------------------------------------------------------
-    # Generate Rolling Metrics Log
-    # actual_price = P_{t+1} (the real next-day price)
-    # predicted_price = P^_{t+1} (model forecast for that same day)
-    # These are correctly aligned in build_precomputed_forecasts.
-    # -----------------------------------------------------------------
-    log_arr = []
-    y_true_arr = []
-    y_pred_arr = []
-    y_prev_arr = []   # P_t (last context price) for directional accuracy
+    # --- history_log: compare past predictions vs actuals ---
+    history_log = []
+    for date_str, pred_price in st["history"].items():
+        date_obj = datetime.date.fromisoformat(date_str)
+        # Find actual price in test_df
+        actual_row = test_df[test_df["Date_obj"] == date_obj]
+        if not actual_row.empty:
+            actual_price = float(actual_row.iloc[0][config["target_col"]])
+            history_log.append({
+                "date": date_str,
+                "actual": actual_price,
+                "predicted": pred_price,
+                "context_end_date": date_str
+            })
+    history_log.sort(key=lambda x: x["date"], reverse=True)
 
-    for i, row in enumerate(forecast_rows[:idx]):
-        actual = float(row["actual_price"])
-        pred   = float(row["predicted_price"])
-        ctx_price_raw = row.get("context_end_price")
-        # context_end_price is P_t — the anchor the model used for reconstruction.
-        # Never fall back to actual_price (P_{t+1}) as that corrupts directional calc.
-        ctx_price = float(ctx_price_raw) if ctx_price_raw is not None else actual
+    # --- Rolling metrics ---
+    rolling_rmse, rolling_r2, rolling_dir_acc, rolling_lazy = None, None, None, None
+    if len(history_log) >= 2:
+        actuals = np.array([r["actual"] for r in history_log])
+        preds = np.array([r["predicted"] for r in history_log])
+        rolling_rmse = round(float(np.sqrt(np.mean((actuals - preds) ** 2))), 2)
+        ss_res = np.sum((actuals - preds) ** 2)
+        ss_tot = np.sum((actuals - np.mean(actuals)) ** 2)
+        rolling_r2 = round(float(1 - ss_res / (ss_tot + 1e-8)), 3)
+        actual_dirs = np.diff(actuals)
+        pred_dirs = np.diff(preds)
+        if len(actual_dirs) > 0:
+            rolling_dir_acc = round(float(np.mean(np.sign(actual_dirs) == np.sign(pred_dirs))), 3)
+        # Lazy check: predictions correlated more with P_t than P_t+1
+        if len(preds) >= 3:
+            lag_corr = np.corrcoef(actuals[1:], preds[:-1])[0, 1] if len(actuals) > 1 else 0
+            fwd_corr = np.corrcoef(actuals, preds)[0, 1] if len(actuals) > 1 else 0
+            rolling_lazy = bool(abs(lag_corr) > abs(fwd_corr))
 
-        y_true_arr.append(actual)
-        y_pred_arr.append(pred)
-        y_prev_arr.append(ctx_price)
+    # --- Yesterday stats ---
+    yesterday_actual, yesterday_pred = None, None
+    if len(history_log) > 0:
+        latest = history_log[0]
+        yesterday_actual = latest["actual"]
+        yesterday_pred = latest["predicted"]
 
-        log_arr.append({
-            "date": row["date"],
-            "actual": round(actual, 2),
-            "predicted": round(pred, 2),
-            "context_end_date": row.get("context_end_date"),
-            "context_end_price": round(ctx_price, 2),
-        })
+    # --- Last training price ---
+    last_train_price = float(context_df.iloc[-1][config["target_col"]]) if len(context_df) > 0 else None
+    last_train_date = str(context_df.iloc[-1]["Date_obj"]) if len(context_df) > 0 else None
 
-    # -----------------------------------------------------------------
-    # Rolling metrics
-    # actual_price        = P_{t+1}  (real next-day price)
-    # predicted_price     = P^{t+1}  (model forecast for that same day)
-    # context_end_price   = P_t      (last known price when forecast was made)
-    # -----------------------------------------------------------------
-    rolling_rmse = None
-    rolling_r2 = None
-    rolling_dir_acc = None
-    rolling_lazy = None        # True if model correlates more with P_t than P_{t+1}
-    corr_actual = None
-    corr_lag1   = None
-
-    n = len(y_true_arr)
-    if n > 1:
-        y_true_np = np.array(y_true_arr)
-        y_pred_np = np.array(y_pred_arr)
-        y_prev_np = np.array(y_prev_arr)
-
-        rolling_rmse = round(float(np.sqrt(mean_squared_error(y_true_np, y_pred_np))), 4)
-        rolling_r2   = round(float(r2_score(y_true_np, y_pred_np)), 4)
-
-        # Directional accuracy: sign(P^{t+1} - P_t) == sign(P_{t+1} - P_t)
-        actual_direction = np.sign(y_true_np - y_prev_np)
-        pred_direction   = np.sign(y_pred_np  - y_prev_np)
-        rolling_dir_acc  = round(float(np.mean(actual_direction == pred_direction)), 4)
-
-        # Laziness check: pred should correlate with P_{t+1}, not P_t.
-        # If corr(pred, P_t) > corr(pred, P_{t+1}) the model is lazy (predicts yesterday).
-        if np.std(y_pred_np) > 1e-8 and np.std(y_true_np) > 1e-8 and np.std(y_prev_np) > 1e-8:
-            corr_actual = round(float(np.corrcoef(y_pred_np, y_true_np)[0, 1]), 4)
-            corr_lag1   = round(float(np.corrcoef(y_pred_np, y_prev_np)[0, 1]), 4)
-            rolling_lazy = bool(corr_lag1 > corr_actual)
-
-    yesterday_actual = None
-    yesterday_pred   = None
-    yesterday_date   = None
-
-    if idx > 0 and log_arr:
-        # log_arr is not reversed yet here, so last entry = most recent
-        last_entry = log_arr[-1]
-        yesterday_date   = last_entry["date"]
-        yesterday_actual = last_entry["actual"]
-        yesterday_pred   = last_entry["predicted"]
-
-    # Newest entries at the top for the dashboard table
-    log_arr.reverse()
+    # --- Date bounds ---
+    min_date = str(test_df.iloc[0]["Date_obj"])
+    max_date = str(test_df.iloc[-1]["Date_obj"])
 
     return {
         "asset": asset,
-        "dataset_label": config.get("dataset_label"),
-        "model_seed": "Ensemble (6 seeds)",
-        "data_split": st.get("data_split"),
         "simulation_day": idx,
-        "current_date": str(current_calendar_date),
-        "min_date": str(min_date),
-        "max_date": str(max_date),
-        "test_row_count": int(len(test_df)),
-        "prediction_mode": "precomputed_frozen_model",
-        "reference_today": str(reference_today),
-        "effective_today": str(effective_today),
-        "today_alignment_note": today_alignment_note,
-        "is_market_day": is_market_day,
-        "forecast_date": pred_info.get("forecast_date"),
-        "predicted_price": pred_info.get("predicted_price"),
-        "last_train_date": pred_info.get("last_train_date"),
-        "yesterday_date": yesterday_date,
-        "yesterday_actual": yesterday_actual,
-        "yesterday_pred": yesterday_pred,
-        "last_train_price": pred_info.get("last_train_price"),
+        "current_date": str(st["current_date"]),
+        "forecast_date": str(test_df.iloc[idx]["Date_obj"]),
+        "predicted_price": pred_info["predicted_price"],
+        "adaptive_weights": pred_info["adaptive_weights"],
+        "engine": "Rapid-Pivot Adaptive v1.1",
+        "dataset_label": config["dataset_label"],
+        "history_log": history_log,
         "rolling_rmse": rolling_rmse,
         "rolling_r2": rolling_r2,
         "rolling_dir_acc": rolling_dir_acc,
         "rolling_lazy": rolling_lazy,
-        "corr_pred_actual": corr_actual,
-        "corr_pred_lag1": corr_lag1,
-        "history_log": log_arr
+        "yesterday_actual": yesterday_actual,
+        "yesterday_pred": yesterday_pred,
+        "last_train_date": last_train_date,
+        "last_train_price": last_train_price,
+        "min_date": min_date,
+        "max_date": max_date,
+        "reference_today": str(datetime.date.today()),
     }
 
 @app.post("/api/next_day/{asset}")
 def next_day(asset: str):
-    if asset not in ASSET_CONFIG:
-        return {"error": "Invalid asset"}
-        
     config = ASSET_CONFIG[asset]
     st = state[asset]
     idx = st["test_idx"]
-    
-    test_df = pd.read_csv(config["test_csv"])
-    test_df["Date_obj"] = pd.to_datetime(test_df["Date"]).dt.date
-    if idx >= len(test_df):
-        return {"error": "No more test data available."}
-        
-    market_date = test_df.iloc[idx]["Date_obj"]
-    current_calendar_date = st["current_date"]
-    
-    if current_calendar_date == market_date:
-        st["test_idx"] += 1
-        message = "Advanced to the next precomputed market day. Model weights and forecasts remain frozen."
-    else:
-        message = "Advanced non-market day. Frozen forecasts were unchanged."
-        
-    st["current_date"] = current_calendar_date + datetime.timedelta(days=1)
+    if idx >= len(st["test_df"]): return {"error": "No more data"}
+
+    # 1. Record TODAY's prediction BEFORE we retrain on the revealed actual
+    context_df = pd.concat([st["train_df"], st["test_df"].iloc[:idx]], ignore_index=True)
+    pred_info = predict_from_context_frame(asset, context_df)
+    forecast_date = str(st["test_df"].iloc[idx]["Date_obj"])
+    st["history"][forecast_date] = pred_info["predicted_price"]
+
+    # 2. Retrain on the now-revealed actual price for this day
+    retrain_on_revealed_day(asset, idx)
+    st["test_idx"] += 1
+    st["current_date"] = st["test_df"].iloc[st["test_idx"] - 1]["Date_obj"]
     save_runtime_state()
-    return {"message": message}
+    return {"message": "Rapid-Pivot update complete."}
 
 @app.post("/api/current_date/{asset}")
 def set_current_date(asset: str, date: str):
-    if asset not in ASSET_CONFIG:
-        return {"error": "Invalid asset"}
-
+    """Jump simulation to a specific date (resets or fast-forwards as needed)."""
     try:
         selected_date = datetime.date.fromisoformat(date)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Date must use YYYY-MM-DD format.") from exc
-
-    test_df = get_test_dates(asset)
-
-    min_date = test_df.iloc[0]["Date_obj"]
-    max_date = test_df.iloc[-1]["Date_obj"]
-    if selected_date < min_date or selected_date > max_date:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Date must be between {min_date} and {max_date}."
-        )
-
-    state_update = set_simulation_date_state(asset, selected_date)
-
-    return {
-        "message": "Simulation date updated.",
-        **state_update
-    }
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+    return set_simulation_date_state(asset, selected_date)
 
 @app.post("/api/use_today/{asset}")
-def use_reference_today(asset: str):
-    if asset not in ASSET_CONFIG:
-        return {"error": "Invalid asset"}
-
-    test_df = get_test_dates(asset)
-    min_date = test_df.iloc[0]["Date_obj"]
-    max_date = test_df.iloc[-1]["Date_obj"]
-    requested_today = get_reference_today(asset)
-    effective_today = clamp_date_to_window(requested_today, min_date, max_date)
-    state_update = set_simulation_date_state(asset, effective_today)
-
-    message = "Dashboard aligned to the reference today."
-    if effective_today != requested_today:
-        message = (
-            f"Reference today is {requested_today}, so the dashboard was aligned to the "
-            f"nearest available test date {effective_today}."
-        )
-
-    return {
-        "message": message,
-        "requested_today": str(requested_today),
-        "effective_today": str(effective_today),
-        **state_update
-    }
+def use_today(asset: str):
+    """Snap simulation to today's real date."""
+    today = datetime.date.today()
+    return set_simulation_date_state(asset, today)
 
 if __name__ == "__main__":
     import uvicorn

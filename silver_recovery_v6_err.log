@@ -1,0 +1,29 @@
+2026-04-13 07:11:12,019 [INFO] Starting Full Silver Training Pipeline...
+2026-04-13 07:11:12,019 [INFO] Loading datasets from silver_RRL_interpolate_extended_train.csv and silver_RRL_interpolate_extended_test.csv
+2026-04-13 07:11:12,029 [INFO] Using strictly features: ['Silver_Futures', 'Gold_Futures', 'US30', 'SnP500', 'NASDAQ_100', 'USD_index']
+2026-04-13 07:11:12,038 [INFO] Loading existing best params from models/silver_RRL_interpolate\best_params.json...
+2026-04-13 07:11:12,152 [INFO] Final Training Seed 0...
+2026-04-13 07:12:06,312 [INFO] Seed 0 | Epoch 50 | Test Loss 78.3120
+2026-04-13 07:12:59,408 [INFO] Seed 0 | Epoch 100 | Test Loss 16.0434
+2026-04-13 07:13:52,819 [INFO] Seed 0 | Epoch 150 | Test Loss 16.9534
+2026-04-13 07:13:52,955 [INFO] Final Training Seed 1...
+2026-04-13 07:14:46,690 [INFO] Seed 1 | Epoch 50 | Test Loss 23.5674
+2026-04-13 07:15:40,214 [INFO] Seed 1 | Epoch 100 | Test Loss 54.4051
+2026-04-13 07:16:33,360 [INFO] Seed 1 | Epoch 150 | Test Loss 59.7316
+2026-04-13 07:16:33,488 [INFO] Final Training Seed 2...
+2026-04-13 07:17:26,089 [INFO] Seed 2 | Epoch 50 | Test Loss 25.7373
+2026-04-13 07:18:18,838 [INFO] Seed 2 | Epoch 100 | Test Loss 40.1529
+2026-04-13 07:19:12,996 [INFO] Seed 2 | Epoch 150 | Test Loss 49.3240
+2026-04-13 07:19:13,124 [INFO] Final Training Seed 42...
+2026-04-13 07:20:07,272 [INFO] Seed 42 | Epoch 50 | Test Loss 24.9553
+2026-04-13 07:21:02,505 [INFO] Seed 42 | Epoch 100 | Test Loss 32.5628
+2026-04-13 07:21:56,346 [INFO] Seed 42 | Epoch 150 | Test Loss 33.4945
+2026-04-13 07:21:56,485 [INFO] Final Training Seed 99...
+2026-04-13 07:22:49,782 [INFO] Seed 99 | Epoch 50 | Test Loss 57.7557
+2026-04-13 07:23:42,909 [INFO] Seed 99 | Epoch 100 | Test Loss 24.1408
+2026-04-13 07:24:35,825 [INFO] Seed 99 | Epoch 150 | Test Loss 22.5855
+2026-04-13 07:24:35,972 [INFO] Final Training Seed 123...
+2026-04-13 07:25:29,407 [INFO] Seed 123 | Epoch 50 | Test Loss 72.8555
+2026-04-13 07:26:22,238 [INFO] Seed 123 | Epoch 100 | Test Loss 77.5154
+2026-04-13 07:27:15,205 [INFO] Seed 123 | Epoch 150 | Test Loss 61.0021
+2026-04-13 07:27:15,348 [INFO] FINAL RESULTS (SILVER): DA=33.85%, RMSE=0.1748, LagCorr=0.0839

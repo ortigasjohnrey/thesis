@@ -11,3 +11,89 @@
 [I 2026-04-13 06:34:16,538] Trial 5 finished with value: 2.1820236120987895 and parameters: {'lookback': 22, 'filters': 62, 'lstm_units': 164, 'dropout': 0.31868411173731187, 'lr': 0.0002060924941320236, 'kernel_size': 7, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
 [I 2026-04-13 06:34:23,108] Trial 6 finished with value: 2.326284183927854 and parameters: {'lookback': 20, 'filters': 121, 'lstm_units': 81, 'dropout': 0.1783931449676581, 'lr': 0.00011935477742481393, 'kernel_size': 3, 'batch_size': 128}. Best is trial 5 with value: 2.1820236120987895.
 [I 2026-04-13 06:34:23,636] Trial 7 finished with value: 1000000.0 and parameters: {'lookback': 14, 'filters': 59, 'lstm_units': 168, 'dropout': 0.15636968998990508, 'lr': 0.0023062618121677952, 'kernel_size': 3, 'batch_size': 32}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:34:31,432] Trial 8 finished with value: 2.3977061378191995 and parameters: {'lookback': 5, 'filters': 111, 'lstm_units': 200, 'dropout': 0.3916028672163949, 'lr': 0.0020434554984161395, 'kernel_size': 3, 'batch_size': 128}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:34:41,695] Trial 9 finished with value: 2.5012211100330464 and parameters: {'lookback': 21, 'filters': 64, 'lstm_units': 76, 'dropout': 0.2243929286862649, 'lr': 0.00035684261232554244, 'kernel_size': 7, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:35:01,933] Trial 10 finished with value: 2.5535987295459095 and parameters: {'lookback': 30, 'filters': 88, 'lstm_units': 126, 'dropout': 0.4729161367647149, 'lr': 0.0007894925179910726, 'kernel_size': 7, 'batch_size': 32}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:35:32,728] Trial 11 finished with value: 2.324301203196754 and parameters: {'lookback': 27, 'filters': 64, 'lstm_units': 137, 'dropout': 0.25003136269979565, 'lr': 0.000559062679805434, 'kernel_size': 5, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:36:10,524] Trial 12 finished with value: 2.3382246869863574 and parameters: {'lookback': 25, 'filters': 51, 'lstm_units': 164, 'dropout': 0.10903800638687489, 'lr': 0.0009488997521232053, 'kernel_size': 7, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:36:21,615] Trial 13 finished with value: 2.3634526018820066 and parameters: {'lookback': 9, 'filters': 77, 'lstm_units': 232, 'dropout': 0.31584804272111905, 'lr': 0.0003767907024872005, 'kernel_size': 5, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:36:42,554] Trial 14 finished with value: 2.267945135263894 and parameters: {'lookback': 17, 'filters': 76, 'lstm_units': 142, 'dropout': 0.21199639010812193, 'lr': 0.00039086715514988327, 'kernel_size': 5, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:36:59,469] Trial 15 finished with value: 2.5622360923953535 and parameters: {'lookback': 18, 'filters': 47, 'lstm_units': 105, 'dropout': 0.3806351717832712, 'lr': 0.0049226956814019795, 'kernel_size': 7, 'batch_size': 32}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:37:34,397] Trial 16 finished with value: 2.3862752649106103 and parameters: {'lookback': 23, 'filters': 98, 'lstm_units': 168, 'dropout': 0.2902862493582478, 'lr': 0.00011459393129292974, 'kernel_size': 5, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:37:54,194] Trial 17 finished with value: 2.3389753523593693 and parameters: {'lookback': 9, 'filters': 71, 'lstm_units': 182, 'dropout': 0.10221056424550126, 'lr': 0.0002671135495382664, 'kernel_size': 7, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:38:08,465] Trial 18 finished with value: 2.273890407308394 and parameters: {'lookback': 28, 'filters': 51, 'lstm_units': 226, 'dropout': 0.16693499157980785, 'lr': 0.001307585694380533, 'kernel_size': 5, 'batch_size': 128}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:38:26,910] Trial 19 finished with value: 2.447772604231035 and parameters: {'lookback': 15, 'filters': 32, 'lstm_units': 107, 'dropout': 0.3749004528350903, 'lr': 0.0005673285799560413, 'kernel_size': 7, 'batch_size': 32}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:38:57,721] Trial 20 finished with value: 2.3344323977390946 and parameters: {'lookback': 22, 'filters': 58, 'lstm_units': 146, 'dropout': 0.24657443547093447, 'lr': 0.00029696589204241953, 'kernel_size': 5, 'batch_size': 64}. Best is trial 5 with value: 2.1820236120987895.
+[I 2026-04-13 06:39:21,416] Trial 21 finished with value: 2.098329116577662 and parameters: {'lookback': 17, 'filters': 77, 'lstm_units': 144, 'dropout': 0.20754605033087203, 'lr': 0.0004858540700032932, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:39:55,779] Trial 22 finished with value: 2.4018978448882016 and parameters: {'lookback': 19, 'filters': 86, 'lstm_units': 184, 'dropout': 0.14246387082319145, 'lr': 0.00045878211730628234, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:40:06,087] Trial 23 finished with value: 2.414269375306498 and parameters: {'lookback': 16, 'filters': 98, 'lstm_units': 121, 'dropout': 0.20846054351284277, 'lr': 0.00014956980868011184, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:40:23,640] Trial 24 finished with value: 2.2863028756286408 and parameters: {'lookback': 12, 'filters': 69, 'lstm_units': 153, 'dropout': 0.19364165852440862, 'lr': 0.0002517422807287178, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:40:43,586] Trial 25 finished with value: 2.2814716491066567 and parameters: {'lookback': 24, 'filters': 81, 'lstm_units': 215, 'dropout': 0.13875589492035048, 'lr': 0.0010219497361073442, 'kernel_size': 7, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:41:17,874] Trial 26 finished with value: 2.194128168119016 and parameters: {'lookback': 20, 'filters': 57, 'lstm_units': 178, 'dropout': 0.27160917948349345, 'lr': 0.0005133960356746277, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:41:49,601] Trial 27 finished with value: 2.3528712567245624 and parameters: {'lookback': 26, 'filters': 42, 'lstm_units': 156, 'dropout': 0.26353629559782626, 'lr': 0.0005062662292316057, 'kernel_size': 7, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:42:07,509] Trial 28 finished with value: 2.2556538389724223 and parameters: {'lookback': 20, 'filters': 71, 'lstm_units': 128, 'dropout': 0.31949774053815816, 'lr': 0.0006848592418590817, 'kernel_size': 5, 'batch_size': 32}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:42:12,907] Trial 29 finished with value: 2.4078410671247217 and parameters: {'lookback': 12, 'filters': 95, 'lstm_units': 107, 'dropout': 0.34673736910917563, 'lr': 0.0012814367716517748, 'kernel_size': 7, 'batch_size': 128}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:42:47,902] Trial 30 finished with value: 2.3156095383034 and parameters: {'lookback': 21, 'filters': 54, 'lstm_units': 177, 'dropout': 0.30110288917976336, 'lr': 0.0002006416027835107, 'kernel_size': 3, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:42:48,238] Trial 31 finished with value: 1000000.0 and parameters: {'lookback': 14, 'filters': 61, 'lstm_units': 190, 'dropout': 0.2166665700370985, 'lr': 0.00032602735562722916, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:43:04,922] Trial 32 finished with value: 2.359416369841721 and parameters: {'lookback': 17, 'filters': 67, 'lstm_units': 214, 'dropout': 0.24664100556496793, 'lr': 0.0004428162262507782, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:43:35,096] Trial 33 finished with value: 2.170898162915386 and parameters: {'lookback': 19, 'filters': 42, 'lstm_units': 170, 'dropout': 0.4152474345736956, 'lr': 0.0006493141813962663, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:44:04,685] Trial 34 finished with value: 2.277457437778626 and parameters: {'lookback': 23, 'filters': 38, 'lstm_units': 155, 'dropout': 0.47676901537058014, 'lr': 0.0006558872905084661, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:44:35,726] Trial 35 finished with value: 2.5021493643110677 and parameters: {'lookback': 19, 'filters': 42, 'lstm_units': 172, 'dropout': 0.4271386589002606, 'lr': 0.0008717544161544556, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:44:55,473] Trial 36 finished with value: 2.4261036973180716 and parameters: {'lookback': 21, 'filters': 46, 'lstm_units': 206, 'dropout': 0.43803070158962676, 'lr': 0.0012799956821317785, 'kernel_size': 3, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:45:31,679] Trial 37 finished with value: 2.124127116591892 and parameters: {'lookback': 19, 'filters': 55, 'lstm_units': 192, 'dropout': 0.3514107577606861, 'lr': 0.0001574626512497919, 'kernel_size': 5, 'batch_size': 128}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:45:43,950] Trial 38 finished with value: 2.2413598017505847 and parameters: {'lookback': 16, 'filters': 36, 'lstm_units': 196, 'dropout': 0.35202316504009457, 'lr': 0.0001474129114793982, 'kernel_size': 3, 'batch_size': 128}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:45:59,306] Trial 39 finished with value: 2.5476620037522273 and parameters: {'lookback': 19, 'filters': 48, 'lstm_units': 234, 'dropout': 0.4198532579665468, 'lr': 0.00020973625941326347, 'kernel_size': 5, 'batch_size': 128}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:46:15,930] Trial 40 finished with value: 2.233647061882888 and parameters: {'lookback': 24, 'filters': 81, 'lstm_units': 251, 'dropout': 0.4023197443578633, 'lr': 0.00017510406214947628, 'kernel_size': 5, 'batch_size': 128}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:46:49,462] Trial 41 finished with value: 2.465512542122227 and parameters: {'lookback': 20, 'filters': 57, 'lstm_units': 163, 'dropout': 0.3228999010538974, 'lr': 0.00013321143124543693, 'kernel_size': 5, 'batch_size': 128}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:47:29,236] Trial 42 finished with value: 2.2404972602064244 and parameters: {'lookback': 22, 'filters': 55, 'lstm_units': 189, 'dropout': 0.3603642109423601, 'lr': 0.0006445860810226662, 'kernel_size': 5, 'batch_size': 128}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:48:10,568] Trial 43 finished with value: 2.3731472224225927 and parameters: {'lookback': 18, 'filters': 64, 'lstm_units': 173, 'dropout': 0.4554477427050651, 'lr': 0.00029562740583849787, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:48:32,911] Trial 44 finished with value: 2.33188382607358 and parameters: {'lookback': 16, 'filters': 52, 'lstm_units': 147, 'dropout': 0.2824115857639292, 'lr': 0.0001040627295894421, 'kernel_size': 5, 'batch_size': 128}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:48:33,184] Trial 45 finished with value: 1000000.0 and parameters: {'lookback': 14, 'filters': 127, 'lstm_units': 205, 'dropout': 0.30557361688985574, 'lr': 0.00023342870732426745, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:49:35,964] Trial 46 finished with value: 2.2221129625181844 and parameters: {'lookback': 22, 'filters': 111, 'lstm_units': 181, 'dropout': 0.49657013305970454, 'lr': 0.0018460623456120321, 'kernel_size': 3, 'batch_size': 32}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:50:03,571] Trial 47 finished with value: 2.1793418460896965 and parameters: {'lookback': 19, 'filters': 74, 'lstm_units': 136, 'dropout': 0.2672105964652169, 'lr': 0.0004098216166344181, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:50:15,152] Trial 48 finished with value: 2.4260191597246705 and parameters: {'lookback': 17, 'filters': 76, 'lstm_units': 127, 'dropout': 0.3996413626561377, 'lr': 0.00042766962993357296, 'kernel_size': 7, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+[I 2026-04-13 06:50:26,134] Trial 49 finished with value: 2.5009996291070675 and parameters: {'lookback': 18, 'filters': 62, 'lstm_units': 94, 'dropout': 0.33624244256108027, 'lr': 0.00018110756679825282, 'kernel_size': 5, 'batch_size': 64}. Best is trial 21 with value: 2.098329116577662.
+2026-04-13 06:50:26,135 [INFO] Best Hyperparameters: {'lookback': 17, 'filters': 77, 'lstm_units': 144, 'dropout': 0.20754605033087203, 'lr': 0.0004858540700032932, 'kernel_size': 5, 'batch_size': 64}
+2026-04-13 06:50:26,143 [INFO] Final Training Seed 0...
+2026-04-13 06:51:35,539 [INFO] Seed 0 | Epoch 50 | Test Loss 22.5381
+2026-04-13 06:51:35,642 [INFO] Seed 0 | Epoch 50 | Test Loss 22.5381
+2026-04-13 06:52:46,360 [INFO] Seed 0 | Epoch 100 | Test Loss 16.3451
+2026-04-13 06:52:46,457 [INFO] Seed 0 | Epoch 100 | Test Loss 16.3451
+2026-04-13 06:53:56,989 [INFO] Seed 0 | Epoch 150 | Test Loss 15.5230
+2026-04-13 06:53:57,085 [INFO] Seed 0 | Epoch 150 | Test Loss 15.5230
+2026-04-13 06:53:57,193 [INFO] Final Training Seed 1...
+2026-04-13 06:55:07,881 [INFO] Seed 1 | Epoch 50 | Test Loss 25.3579
+2026-04-13 06:55:07,980 [INFO] Seed 1 | Epoch 50 | Test Loss 25.3579
+2026-04-13 06:56:19,946 [INFO] Seed 1 | Epoch 100 | Test Loss 23.5763
+2026-04-13 06:56:20,051 [INFO] Seed 1 | Epoch 100 | Test Loss 23.5763
+2026-04-13 06:57:31,391 [INFO] Seed 1 | Epoch 150 | Test Loss 23.6168
+2026-04-13 06:57:31,493 [INFO] Seed 1 | Epoch 150 | Test Loss 23.6168
+2026-04-13 06:57:31,602 [INFO] Final Training Seed 2...
+2026-04-13 06:58:43,056 [INFO] Seed 2 | Epoch 50 | Test Loss 35.8625
+2026-04-13 06:58:43,152 [INFO] Seed 2 | Epoch 50 | Test Loss 35.8625
+2026-04-13 06:59:54,918 [INFO] Seed 2 | Epoch 100 | Test Loss 40.3537
+2026-04-13 06:59:55,024 [INFO] Seed 2 | Epoch 100 | Test Loss 40.3537
+2026-04-13 07:01:06,497 [INFO] Seed 2 | Epoch 150 | Test Loss 39.5064
+2026-04-13 07:01:06,600 [INFO] Seed 2 | Epoch 150 | Test Loss 39.5064
+2026-04-13 07:01:06,707 [INFO] Final Training Seed 42...
+2026-04-13 07:02:18,310 [INFO] Seed 42 | Epoch 50 | Test Loss 67.2446
+2026-04-13 07:02:18,410 [INFO] Seed 42 | Epoch 50 | Test Loss 67.2446
+2026-04-13 07:03:30,081 [INFO] Seed 42 | Epoch 100 | Test Loss 38.1089
+2026-04-13 07:03:30,198 [INFO] Seed 42 | Epoch 100 | Test Loss 38.1089
+2026-04-13 07:04:42,080 [INFO] Seed 42 | Epoch 150 | Test Loss 39.2572
+2026-04-13 07:04:42,184 [INFO] Seed 42 | Epoch 150 | Test Loss 39.2572
+2026-04-13 07:04:42,292 [INFO] Final Training Seed 99...
+2026-04-13 07:05:54,169 [INFO] Seed 99 | Epoch 50 | Test Loss 26.3003
+2026-04-13 07:05:54,269 [INFO] Seed 99 | Epoch 50 | Test Loss 26.3003
+2026-04-13 07:06:59,274 [INFO] Seed 99 | Epoch 100 | Test Loss 13.7709
+2026-04-13 07:06:59,312 [INFO] Seed 99 | Epoch 100 | Test Loss 13.7709
+2026-04-13 07:07:32,367 [INFO] Seed 99 | Epoch 150 | Test Loss 13.3539
+2026-04-13 07:07:32,405 [INFO] Seed 99 | Epoch 150 | Test Loss 13.3539
+2026-04-13 07:07:32,449 [INFO] Final Training Seed 123...
+2026-04-13 07:08:06,372 [INFO] Seed 123 | Epoch 50 | Test Loss 28.3798
+2026-04-13 07:08:06,416 [INFO] Seed 123 | Epoch 50 | Test Loss 28.3798
+2026-04-13 07:08:40,061 [INFO] Seed 123 | Epoch 100 | Test Loss 34.5869
+2026-04-13 07:08:40,099 [INFO] Seed 123 | Epoch 100 | Test Loss 34.5869
+2026-04-13 07:09:13,046 [INFO] Seed 123 | Epoch 150 | Test Loss 31.3309
+2026-04-13 07:09:13,084 [INFO] Seed 123 | Epoch 150 | Test Loss 31.3309
+2026-04-13 07:09:13,130 [INFO] FINAL RESULTS (GOLD): DA=53.67%, RMSE=47.6262, LagCorr=-0.0027
