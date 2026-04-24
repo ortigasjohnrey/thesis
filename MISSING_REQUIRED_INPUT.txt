@@ -1,0 +1,9 @@
+The bundle is complete except for one file that was not present in the upload:
+
+data/new/gold_RRL_interpolate_2025_05_01_to_2025_11_26.csv
+
+Your uploaded historical gold file ends at 2025-04-30.
+The requested simulation window starts at 2025-05-01, so the actual aligned new-data CSV
+for 2025-05-01 to 2025-11-26 still needs to be placed in data/new/ before the simulation can run.
+
+Use the template file in data/new/ as the starting format.

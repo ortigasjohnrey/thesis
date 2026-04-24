@@ -1,0 +1,15 @@
+{
+    "default_seed": 2,
+    "simulation_window": {
+        "start": "2025-05-01",
+        "end": "2025-11-26"
+    },
+    "default_query_date": "2025-08-15",
+    "local_paths": {
+        "history_csv": "data/historical/gold_RRL_interpolate_history_to_2025_04_30.csv",
+        "new_data_csv_expected": "data/new/gold_RRL_interpolate_2025_05_01_to_2025_11_26.csv",
+        "new_data_template_csv": "data/new/gold_RRL_interpolate_2025_05_01_to_2025_11_26_TEMPLATE.csv",
+        "model_root": "models/gold_RRL_interpolate_6am/",
+        "output_dir": "outputs/"
+    }
+}

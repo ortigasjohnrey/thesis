@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gold CNN-BiLSTM Live Simulation</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+<div class="animated-bg">
+  <svg class="wave-container" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="waveGradient1" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:#1e3a8a;stop-opacity:0.8" />
+        <stop offset="100%" style="stop-color:#0f172a;stop-opacity:0.4" />
+      </linearGradient>
+      <linearGradient id="waveGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+        <stop offset="100%" style="stop-color:#1e40af;stop-opacity:0.1" />
+      </linearGradient>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+        <feMerge>
+          <feMergeNode in="coloredBlur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+    
+    <!-- Static wave layers -->
+    <path class="wave wave-1" d="M-1200,400 Q-900,350 -600,400 T0,400 T600,400 T1200,400 L1200,800 L-1200,800 Z" fill="url(#waveGradient1)"/>
+    <path class="wave wave-2" d="M-1200,450 Q-800,380 -400,450 T400,450 T1200,450 L1200,800 L-1200,800 Z" fill="url(#waveGradient2)" opacity="0.6"/>
+    <path class="wave wave-3" d="M-1200,500 Q-900,420 -600,500 T0,500 T600,500 T1200,500 L1200,800 L-1200,800 Z" fill="url(#waveGradient1)" opacity="0.4"/>
+    
+    <!-- Animated flowing lines -->
+    <g class="flow-lines" filter="url(#glow)">
+      <path class="line line-1" d="M100,200 Q300,150 500,200 T900,200" stroke="#60a5fa" stroke-width="2" fill="none" opacity="0.6"/>
+      <path class="line line-2" d="M50,350 Q250,300 450,350 T850,350" stroke="#3b82f6" stroke-width="2.5" fill="none" opacity="0.5"/>
+      <path class="line line-3" d="M150,500 Q350,450 550,500 T950,500" stroke="#60a5fa" stroke-width="2" fill="none" opacity="0.4"/>
+      <path class="line line-4" d="M0,650 Q200,600 400,650 T800,650" stroke="#1e40af" stroke-width="1.5" fill="none" opacity="0.5"/>
+    </g>
+    
+    <!-- Curved contour waves -->
+    <g class="contours" opacity="0.3">
+      <path class="contour contour-1" d="M200,100 Q400,50 600,100 T1000,100" stroke="#3b82f6" stroke-width="1" fill="none"/>
+      <path class="contour contour-2" d="M150,250 Q350,200 550,250 T950,250" stroke="#60a5fa" stroke-width="1.5" fill="none"/>
+      <path class="contour contour-3" d="M100,400 Q300,350 500,400 T900,400" stroke="#3b82f6" stroke-width="1" fill="none"/>
+      <path class="contour contour-4" d="M200,550 Q400,500 600,550 T1000,550" stroke="#1e40af" stroke-width="1.5" fill="none"/>
+      <path class="contour contour-5" d="M50,700 Q250,650 450,700 T850,700" stroke="#60a5fa" stroke-width="1" fill="none"/>
+    </g>
+  </svg>
+  
+  <!-- Overlay to ensure readability -->
+  <div class="bg-overlay"></div>
+</div>
+
+<header class="hero">
+  <h1>Gold CNN-BiLSTM Live Simulation Dashboard</h1>
+</header>
+
+<main class="layout">
+  <section class="card controls">
+    <div class="control-group">
+      <label for="startDate">Starting Date</label>
+      <input id="startDate" type="date" value="{{ sim_start }}" min="{{ sim_start }}" max="{{ sim_end }}">
+    </div>
+
+    <button id="startBtn" type="button" class="btn-primary">Load Simulation</button>
+    <button id="nextBtn" type="button" class="btn-primary" disabled>Next Day Predict</button>
+    <button id="resetBtn" type="button" class="btn-secondary" disabled>Reset Current Run</button>
+    <button id="downloadBtn" type="button" class="btn-secondary" disabled>Download Log</button>
+
+    <div id="message" class="alert neutral"></div>
+  </section>
+
+  <section class="card dashboard">
+    <div class="metrics">
+      <div class="metric">
+        <span>Anchor Date</span>
+        <strong id="mAnchor">—</strong>
+      </div>
+      <div class="metric">
+        <span>Forecast Date</span>
+        <strong id="mDate">—</strong>
+      </div>
+      <div class="metric">
+        <span>Predicted Price</span>
+        <strong id="mPred">—</strong>
+      </div>
+      <div class="metric">
+        <span>Actual Price</span>
+        <strong id="mActual">—</strong>
+      </div>
+      <div class="metric">
+        <span>Absolute Error</span>
+        <strong id="mErr">—</strong>
+      </div>
+      <div class="metric">
+        <span>Cumulative RMSE</span>
+        <strong id="mRmse">—</strong>
+      </div>
+      <div class="metric">
+        <span>Cumulative R²</span>
+        <strong id="mR2">—</strong>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="chart" width="1200" height="500"></canvas>
+      <div id="chartTooltip" class="chart-tooltip" style="display: none;"></div>
+    </div>
+  </section>
+
+  <section class="card log-card">
+    <h2>Revealed Forecast Log</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Anchor Date</th>
+            <th>Forecast Date</th>
+            <th>Predicted Price</th>
+            <th>Actual Price</th>
+            <th>Abs. Error</th>
+            <th>R²</th>
+            <th>RMSE</th>
+          </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
