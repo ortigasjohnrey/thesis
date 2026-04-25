@@ -105,7 +105,7 @@ def row_to_record(row: pd.Series | dict[str, Any]) -> dict[str, Any]:
     return {k: json_safe(v) for k, v in data.items()}
 
 
-def cumulative_metrics(df: pd.DataFrame) -> dict[str, Any]:
+def forecast_metrics(df: pd.DataFrame) -> dict[str, Any]:
     if df.empty:
         return {"rows": 0, "rmse": None, "r2": None}
 
@@ -121,12 +121,11 @@ def cumulative_metrics(df: pd.DataFrame) -> dict[str, Any]:
 
 def chart_payload(df: pd.DataFrame) -> dict[str, list[Any]]:
     if df.empty:
-        return {"dates": [], "actual": [], "predicted": [], "absolute_error": []}
+        return {"dates": [], "actual": [], "predicted": []}
     return {
         "dates": pd.to_datetime(df["forecast_date"]).dt.strftime("%Y-%m-%d").tolist(),
         "actual": [json_safe(x) for x in df["actual_price"].tolist()],
         "predicted": [json_safe(x) for x in df["predicted_price"].tolist()],
-        "absolute_error": [json_safe(x) for x in df["absolute_error"].tolist()],
     }
 
 
@@ -394,7 +393,7 @@ def api_start():
         "first_forecast_date": pd.to_datetime(filtered["forecast_date"].iloc[0]).strftime("%Y-%m-%d"),
         "total_rows": int(len(filtered)),
         "remaining_rows": int(len(filtered)),
-        "metrics": cumulative_metrics(pd.DataFrame(columns=filtered.columns)),
+        "metrics": forecast_metrics(pd.DataFrame(columns=filtered.columns)),
         "chart": chart_payload(pd.DataFrame(columns=filtered.columns)),
     })
 
@@ -416,7 +415,7 @@ def api_next():
             "finished": True,
             "message": "Simulation finished. No more forecast rows are available.",
             "current_row": None,
-            "metrics": cumulative_metrics(shown),
+            "metrics": forecast_metrics(shown),
             "chart": chart_payload(shown),
             "shown_rows": int(len(shown)),
             "remaining_rows": 0,
@@ -432,7 +431,7 @@ def api_next():
         "ok": True,
         "finished": finished,
         "current_row": row_to_record(row),
-        "metrics": cumulative_metrics(shown),
+        "metrics": forecast_metrics(shown),
         "chart": chart_payload(shown),
         "shown_rows": int(len(shown)),
         "remaining_rows": int(len(rows) - state["pointer"]),
@@ -453,7 +452,7 @@ def api_reset():
         "message": "Simulation reset.",
         "shown_rows": 0,
         "remaining_rows": int(len(state["rows"])),
-        "metrics": cumulative_metrics(state["shown"]),
+        "metrics": forecast_metrics(state["shown"]),
         "chart": chart_payload(state["shown"]),
     })
 
@@ -467,7 +466,7 @@ def api_revealed(run_id: str):
         "ok": True,
         "run_id": run_id,
         "rows": frame_to_records(shown),
-        "metrics": cumulative_metrics(shown),
+        "metrics": forecast_metrics(shown),
         "chart": chart_payload(shown),
     })
 

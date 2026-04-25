@@ -8,7 +8,7 @@ The dashboard lets you:
 2. Click **Load Simulation**.
 3. Click **Next Day Predict** repeatedly.
 4. Watch the actual vs. predicted graph move over time.
-5. See cumulative RMSE and R² update after every revealed forecast.
+5. See RMSE and R² update after every revealed forecast.
 6. Download the revealed simulation log as CSV.
 
 ## Important required data file
@@ -154,7 +154,7 @@ Example body:
 }
 ```
 
-Returns one new row plus cumulative RMSE, cumulative R², and updated chart data.
+Returns one new row plus RMSE, R², and updated chart data.
 
 ### Reset current simulation
 
@@ -173,4 +173,4 @@ Example body:
 
 ## How to explain this in defense
 
-This GUI served as a fixed-model rolling one-step-ahead simulation. The trained CNN-BiLSTM model was loaded once and was not retrained during the simulation. Each button click revealed the next available out-of-sample forecast row, compared the predicted gold price with the actual gold price, and updated cumulative RMSE and R². This showed how model performance evolved across the unseen test period rather than reporting only one static final metric.
+This GUI served as a fixed-model rolling one-step-ahead simulation. The trained CNN-BiLSTM model was loaded once and was not retrained during the simulation. Each button click revealed the next available out-of-sample forecast row, compared the predicted gold price with the actual gold price, and updated RMSE and R². This showed how model performance evolved across the unseen test period rather than reporting only one static final metric.

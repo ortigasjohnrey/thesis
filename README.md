@@ -2,8 +2,8 @@
 
 This package was built from your uploaded files so you can run the **gold new-data simulation locally** for the requested test window:
 
-- **Simulation start:** 2025-05-01  
-- **Simulation end:** 2025-11-26  
+- **Simulation start:** 2025-05-01
+- **Simulation end:** 2025-11-26
 
 ## What is included
 
@@ -57,12 +57,14 @@ Use these local paths inside the extracted folder:
 ## Quick start on Windows
 
 ### Option A
+
 1. Run `setup_env.bat`
 2. Put your prepared new-data CSV here:
    - `data/new/gold_RRL_interpolate_2025_05_01_to_2025_11_26.csv`
 3. Run `run_simulation.bat`
 
 ### Option B
+
 Run manually:
 
 ```bash
@@ -137,7 +139,7 @@ Then open:
 http://127.0.0.1:5000
 ```
 
-The browser dashboard lets you enter a today/anchor date and click **Next Day Predict** to reveal one forecast row at a time. It updates predicted price, actual price, absolute error, cumulative RMSE, cumulative R², and the moving graph after every click.
+The browser dashboard lets you enter a today/anchor date and click **Next Day Predict** to reveal one forecast row at a time. It updates predicted price, actual price, RMSE, R², and the moving graph after every click.
 
 Read the detailed Flask instructions in:
 

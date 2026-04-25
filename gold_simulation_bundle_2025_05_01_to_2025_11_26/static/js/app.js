@@ -158,7 +158,6 @@ function prependLog(row, metrics = {}) {
     <td>${row.forecast_date}</td>
     <td>${money(row.predicted_price)}</td>
     <td>${money(row.actual_price)}</td>
-    <td>${money(row.absolute_error)}</td>
     <td>${r2Val}</td>
     <td>${rmseVal}</td>
   `;
